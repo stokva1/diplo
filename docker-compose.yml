@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: diplo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: diplo
+      POSTGRES_PASSWORD: diplo
+      POSTGRES_DB: diplo
+    ports:
+      - "5432:5432"
+    volumes:
+      - diplo_postgres_data:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d
+
+volumes:
+  diplo_postgres_data:
