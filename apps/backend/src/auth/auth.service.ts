@@ -1,4 +1,113 @@
-import { Injectable } from '@nestjs/common';
+import {
+    ConflictException,
+    Injectable,
+    InternalServerErrorException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../database/prisma.service';
+import { RegisterOrganizationDto } from './dto/register-organization.dto';
+import { JwtService } from '@nestjs/jwt';
+
+type AccessTokenPayload = {
+    sub: string;
+    membershipId: string;
+    organizationId: string;
+    role: string;
+};
 
 @Injectable()
-export class AuthService {}
+export class AuthService {
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly jwtService: JwtService,
+    ) {}
+
+    async registerOrganization(dto: RegisterOrganizationDto) {
+        const existingUser = await this.prisma.user.findUnique({
+            where: {
+                email: dto.user.email,
+            },
+        });
+
+        if (existingUser) {
+            throw new ConflictException('E-mail already exists.');
+        }
+
+        const passwordHash = await bcrypt.hash(dto.user.password, 12);
+
+        try {
+            return await this.prisma.$transaction(async (tx) => {
+                const user = await tx.user.create({
+                    data: {
+                        email: dto.user.email,
+                        name: dto.user.name,
+                        passwordHash,
+                    },
+                });
+
+                const organization = await tx.organization.create({
+                    data: {
+                        name: dto.organization.name,
+                        ico: dto.organization.ico,
+                        contactEmail: dto.organization.contactEmail,
+                    },
+                });
+
+                const membership = await tx.membership.create({
+                    data: {
+                        userId: user.id,
+                        organizationId: organization.id,
+                        role: 'ADMIN',
+                        status: 'ACTIVE',
+                    },
+                });
+
+                await tx.organizationSettings.create({
+                    data: {
+                        organizationId: organization.id,
+                    },
+                });
+
+                const accessToken = await this.generateAccessToken({
+                    sub: user.id,
+                    membershipId: membership.id,
+                    organizationId: organization.id,
+                    role: membership.role,
+                });
+
+                return {
+                    accessToken,
+                    user: {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                    },
+                    organization: {
+                        id: organization.id,
+                        name: organization.name,
+                        ico: organization.ico,
+                        contactEmail: organization.contactEmail,
+                    },
+                    membership: {
+                        id: membership.id,
+                        role: membership.role,
+                        status: membership.status,
+                    },
+                };
+            });
+        } catch (error) {
+            throw new InternalServerErrorException(
+                'The organization could not be created.',
+            );
+        }
+    }
+
+    private async generateAccessToken(
+        payload: AccessTokenPayload,
+    ): Promise<string> {
+        return this.jwtService.signAsync(payload, {
+            secret: process.env.JWT_ACCESS_SECRET,
+            expiresIn: '15m',
+        });
+    }
+}
