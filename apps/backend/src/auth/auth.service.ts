@@ -2,11 +2,13 @@ import {
     ConflictException,
     Injectable,
     InternalServerErrorException,
+    UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../database/prisma.service';
-import { RegisterOrganizationDto } from './dto/register-organization.dto';
-import { JwtService } from '@nestjs/jwt';
+import {PrismaService} from '../database/prisma.service';
+import {RegisterOrganizationDto} from './dto/register-organization.dto';
+import {LoginDto} from './dto/login.dto';
+import {JwtService} from '@nestjs/jwt';
 
 type AccessTokenPayload = {
     sub: string;
@@ -20,7 +22,8 @@ export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
-    ) {}
+    ) {
+    }
 
     async registerOrganization(dto: RegisterOrganizationDto) {
         const existingUser = await this.prisma.user.findUnique({
@@ -109,5 +112,108 @@ export class AuthService {
             secret: process.env.JWT_ACCESS_SECRET,
             expiresIn: '15m',
         });
+    }
+
+    async me(currentUser: {
+        userId: string;
+        membershipId: string;
+        organizationId: string;
+        role: string;
+    }) {
+        const membership = await this.prisma.membership.findFirst({
+            where: {
+                id: currentUser.membershipId,
+                organizationId: currentUser.organizationId,
+                userId: currentUser.userId,
+                status: 'ACTIVE',
+            },
+            include: {
+                user: true,
+                organization: true,
+            },
+        });
+
+        if (!membership) {
+            throw new UnauthorizedException();
+        }
+
+        return {
+            user: {
+                id: membership.user.id,
+                email: membership.user.email,
+                name: membership.user.name,
+            },
+            organization: {
+                id: membership.organization.id,
+                name: membership.organization.name,
+                ico: membership.organization.ico,
+                contactEmail: membership.organization.contactEmail,
+            },
+            membership: {
+                id: membership.id,
+                role: membership.role,
+                status: membership.status,
+            },
+        };
+    }
+
+    async login(dto: LoginDto) {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                email: dto.email,
+            },
+            include: {
+                memberships: {
+                    include: {
+                        organization: true,
+                    },
+                },
+            },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid email or password.');
+        }
+
+        const passwordMatches = await bcrypt.compare(dto.password, user.passwordHash);
+
+        if (!passwordMatches) {
+            throw new UnauthorizedException('Invalid email or password.');
+        }
+
+        const membership = user.memberships.find(
+            (membership) => membership.status === 'ACTIVE',
+        );
+
+        if (!membership) {
+            throw new UnauthorizedException('Membership is not active.');
+        }
+
+        const accessToken = await this.generateAccessToken({
+            sub: user.id,
+            membershipId: membership.id,
+            organizationId: membership.organizationId,
+            role: membership.role,
+        });
+
+        return {
+            accessToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+            },
+            organization: {
+                id: membership.organization.id,
+                name: membership.organization.name,
+                ico: membership.organization.ico,
+                contactEmail: membership.organization.contactEmail,
+            },
+            membership: {
+                id: membership.id,
+                role: membership.role,
+                status: membership.status,
+            },
+        };
     }
 }
