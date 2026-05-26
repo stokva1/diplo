@@ -1,0 +1,293 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  previewFeatures = ["partialIndexes"]
+  moduleFormat    = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model audit_logs {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String        @db.Uuid
+  actor_membership_id String?       @db.Uuid
+  action              String        @db.VarChar(100)
+  entity_type         String        @db.VarChar(100)
+  entity_id           String        @db.Uuid
+  old_values          Json?
+  new_values          Json?
+  created_at          DateTime      @default(now()) @db.Timestamptz(6)
+  memberships         memberships?  @relation(fields: [actor_membership_id], references: [id], onUpdate: NoAction)
+  organizations       organizations @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+
+  @@index([actor_membership_id], map: "idx_audit_logs_actor_membership_id")
+  @@index([created_at], map: "idx_audit_logs_created_at")
+  @@index([entity_type, entity_id], map: "idx_audit_logs_entity")
+  @@index([organization_id], map: "idx_audit_logs_organization_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model file_attachments {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id           String                      @db.Uuid
+  uploaded_by_membership_id String                      @db.Uuid
+  file_name                 String                      @db.VarChar(255)
+  mime_type                 String                      @db.VarChar(100)
+  file_size_bytes           Int
+  purpose                   String                      @default("OTHER") @db.VarChar(30)
+  storage_key               String                      @unique @db.VarChar(500)
+  created_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  deleted_at                DateTime?                   @db.Timestamptz(6)
+  organizations             organizations               @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+  memberships               memberships                 @relation(fields: [uploaded_by_membership_id], references: [id], onUpdate: NoAction)
+  service_events            service_events[]
+  trip_logs                 trip_logs[]
+  vehicle_issue_attachments vehicle_issue_attachments[]
+
+  @@index([organization_id], map: "idx_file_attachments_organization_id")
+  @@index([purpose], map: "idx_file_attachments_purpose")
+  @@index([uploaded_by_membership_id], map: "idx_file_attachments_uploaded_by_membership_id")
+}
+
+model invitations {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  email           String        @db.VarChar(255)
+  name            String?       @db.VarChar(255)
+  token_hash      String        @db.VarChar(255)
+  expires_at      DateTime      @db.Timestamptz(6)
+  accepted_at     DateTime?     @db.Timestamptz(6)
+  cancelled_at    DateTime?     @db.Timestamptz(6)
+  created_by_id   String        @db.Uuid
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  memberships     memberships   @relation(fields: [created_by_id], references: [id], onUpdate: NoAction)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_by_id], map: "idx_invitations_created_by_id")
+  @@index([email], map: "idx_invitations_email")
+  @@index([organization_id], map: "idx_invitations_organization_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model memberships {
+  id                                                                    String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                                       String             @db.Uuid
+  user_id                                                               String             @db.Uuid
+  role                                                                  String             @default("MEMBER") @db.VarChar(20)
+  status                                                                String             @default("ACTIVE") @db.VarChar(20)
+  created_at                                                            DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                                                            DateTime           @default(now()) @db.Timestamptz(6)
+  audit_logs                                                            audit_logs[]
+  file_attachments                                                      file_attachments[]
+  invitations                                                           invitations[]
+  organizations                                                         organizations      @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+  users                                                                 users              @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  reservations_reservations_cancelled_by_membership_idTomemberships     reservations[]     @relation("reservations_cancelled_by_membership_idTomemberships")
+  reservations_reservations_membership_idTomemberships                  reservations[]     @relation("reservations_membership_idTomemberships")
+  service_events_service_events_cancelled_by_membership_idTomemberships service_events[]   @relation("service_events_cancelled_by_membership_idTomemberships")
+  service_events_service_events_created_by_membership_idTomemberships   service_events[]   @relation("service_events_created_by_membership_idTomemberships")
+  trip_logs                                                             trip_logs[]
+  vehicle_issues_vehicle_issues_reported_by_membership_idTomemberships  vehicle_issues[]   @relation("vehicle_issues_reported_by_membership_idTomemberships")
+  vehicle_issues_vehicle_issues_resolved_by_membership_idTomemberships  vehicle_issues[]   @relation("vehicle_issues_resolved_by_membership_idTomemberships")
+  vehicles                                                              vehicles[]
+
+  @@unique([organization_id, user_id], map: "uq_memberships_organization_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model organization_settings {
+  id                           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id              String        @unique @db.Uuid
+  trip_log_retention_months    Int           @default(60)
+  issue_photo_retention_months Int           @default(24)
+  created_at                   DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime      @default(now()) @db.Timestamptz(6)
+  organizations                organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model organizations {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String                 @db.VarChar(255)
+  ico                   String?                @db.VarChar(20)
+  contact_email         String?                @db.VarChar(255)
+  created_at            DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime               @default(now()) @db.Timestamptz(6)
+  audit_logs            audit_logs[]
+  file_attachments      file_attachments[]
+  invitations           invitations[]
+  memberships           memberships[]
+  organization_settings organization_settings?
+  vehicles              vehicles[]
+}
+
+model password_reset_tokens {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  token_hash String    @unique @db.VarChar(255)
+  expires_at DateTime  @db.Timestamptz(6)
+  used_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expires_at], map: "idx_password_reset_tokens_expires_at")
+  @@index([user_id], map: "idx_password_reset_tokens_user_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reservations {
+  id                                                               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicle_id                                                       String           @db.Uuid
+  membership_id                                                    String           @db.Uuid
+  start_at                                                         DateTime         @db.Timestamptz(6)
+  end_at                                                           DateTime         @db.Timestamptz(6)
+  origin                                                           String           @db.VarChar(255)
+  destination                                                      String           @db.VarChar(255)
+  purpose                                                          String
+  status                                                           String           @default("ACTIVE") @db.VarChar(20)
+  cancelled_at                                                     DateTime?        @db.Timestamptz(6)
+  cancelled_by_membership_id                                       String?          @db.Uuid
+  created_at                                                       DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at                                                       DateTime         @default(now()) @db.Timestamptz(6)
+  memberships_reservations_cancelled_by_membership_idTomemberships memberships?     @relation("reservations_cancelled_by_membership_idTomemberships", fields: [cancelled_by_membership_id], references: [id], onUpdate: NoAction)
+  memberships_reservations_membership_idTomemberships              memberships      @relation("reservations_membership_idTomemberships", fields: [membership_id], references: [id], onUpdate: NoAction)
+  vehicles                                                         vehicles         @relation(fields: [vehicle_id], references: [id], onUpdate: NoAction)
+  trip_logs                                                        trip_logs?
+  vehicle_issues                                                   vehicle_issues[]
+
+  @@index([cancelled_by_membership_id], map: "idx_reservations_cancelled_by_membership_id")
+  @@index([membership_id], map: "idx_reservations_membership_id")
+  @@index([status], map: "idx_reservations_status")
+  @@index([vehicle_id, start_at, end_at], map: "idx_reservations_vehicle_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_events {
+  id                                                                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicle_id                                                         String            @db.Uuid
+  created_by_membership_id                                           String            @db.Uuid
+  title                                                              String            @db.VarChar(255)
+  description                                                        String?
+  start_at                                                           DateTime          @db.Timestamptz(6)
+  end_at                                                             DateTime          @db.Timestamptz(6)
+  cost                                                               Decimal?          @db.Decimal(10, 2)
+  invoice_file_id                                                    String?           @db.Uuid
+  status                                                             String            @default("ACTIVE") @db.VarChar(20)
+  cancelled_at                                                       DateTime?         @db.Timestamptz(6)
+  cancelled_by_membership_id                                         String?           @db.Uuid
+  created_at                                                         DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at                                                         DateTime          @default(now()) @db.Timestamptz(6)
+  memberships_service_events_cancelled_by_membership_idTomemberships memberships?      @relation("service_events_cancelled_by_membership_idTomemberships", fields: [cancelled_by_membership_id], references: [id], onUpdate: NoAction)
+  memberships_service_events_created_by_membership_idTomemberships   memberships       @relation("service_events_created_by_membership_idTomemberships", fields: [created_by_membership_id], references: [id], onUpdate: NoAction)
+  file_attachments                                                   file_attachments? @relation(fields: [invoice_file_id], references: [id], onUpdate: NoAction)
+  vehicles                                                           vehicles          @relation(fields: [vehicle_id], references: [id], onUpdate: NoAction)
+
+  @@index([cancelled_by_membership_id], map: "idx_service_events_cancelled_by_membership_id")
+  @@index([created_by_membership_id], map: "idx_service_events_created_by_membership_id")
+  @@index([invoice_file_id], map: "idx_service_events_invoice_file_id")
+  @@index([status], map: "idx_service_events_status")
+  @@index([vehicle_id, start_at, end_at], map: "idx_service_events_vehicle_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model trip_logs {
+  id                         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservation_id             String            @unique @db.Uuid
+  odometer_start_km          Int
+  odometer_end_km            Int
+  distance_km                Int?              @default(dbgenerated("(odometer_end_km - odometer_start_km)"))
+  refueled                   Boolean           @default(false)
+  refueling_cost             Decimal?          @db.Decimal(10, 2)
+  refueling_receipt_file_id  String?           @db.Uuid
+  note                       String?
+  completed_by_membership_id String            @db.Uuid
+  completed_at               DateTime          @default(now()) @db.Timestamptz(6)
+  created_at                 DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime          @default(now()) @db.Timestamptz(6)
+  memberships                memberships       @relation(fields: [completed_by_membership_id], references: [id], onUpdate: NoAction)
+  file_attachments           file_attachments? @relation(fields: [refueling_receipt_file_id], references: [id], onUpdate: NoAction)
+  reservations               reservations      @relation(fields: [reservation_id], references: [id], onUpdate: NoAction)
+
+  @@index([completed_by_membership_id], map: "idx_trip_logs_completed_by_membership_id")
+  @@index([refueling_receipt_file_id], map: "idx_trip_logs_refueling_receipt_file_id")
+}
+
+model users {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String                  @unique @db.VarChar(255)
+  password_hash         String                  @db.VarChar(255)
+  name                  String                  @db.VarChar(255)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  memberships           memberships[]
+  password_reset_tokens password_reset_tokens[]
+}
+
+model vehicle_issue_attachments {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicle_issue_id   String           @db.Uuid
+  file_attachment_id String           @db.Uuid
+  created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  file_attachments   file_attachments @relation(fields: [file_attachment_id], references: [id], onUpdate: NoAction)
+  vehicle_issues     vehicle_issues   @relation(fields: [vehicle_issue_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([vehicle_issue_id, file_attachment_id], map: "uq_vehicle_issue_attachments_issue_file")
+  @@index([file_attachment_id], map: "idx_vehicle_issue_attachments_file_attachment_id")
+  @@index([vehicle_issue_id], map: "idx_vehicle_issue_attachments_vehicle_issue_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model vehicle_issues {
+  id                                                                String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicle_id                                                        String                      @db.Uuid
+  reservation_id                                                    String?                     @db.Uuid
+  reported_by_membership_id                                         String                      @db.Uuid
+  description                                                       String
+  status                                                            String                      @default("OPEN") @db.VarChar(20)
+  resolved_by_membership_id                                         String?                     @db.Uuid
+  resolved_at                                                       DateTime?                   @db.Timestamptz(6)
+  created_at                                                        DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                                                        DateTime                    @default(now()) @db.Timestamptz(6)
+  vehicle_issue_attachments                                         vehicle_issue_attachments[]
+  memberships_vehicle_issues_reported_by_membership_idTomemberships memberships                 @relation("vehicle_issues_reported_by_membership_idTomemberships", fields: [reported_by_membership_id], references: [id], onUpdate: NoAction)
+  reservations                                                      reservations?               @relation(fields: [reservation_id], references: [id], onUpdate: NoAction)
+  memberships_vehicle_issues_resolved_by_membership_idTomemberships memberships?                @relation("vehicle_issues_resolved_by_membership_idTomemberships", fields: [resolved_by_membership_id], references: [id], onUpdate: NoAction)
+  vehicles                                                          vehicles                    @relation(fields: [vehicle_id], references: [id], onUpdate: NoAction)
+
+  @@index([reported_by_membership_id], map: "idx_vehicle_issues_reported_by_membership_id")
+  @@index([reservation_id], map: "idx_vehicle_issues_reservation_id")
+  @@index([resolved_by_membership_id], map: "idx_vehicle_issues_resolved_by_membership_id")
+  @@index([status], map: "idx_vehicle_issues_status")
+  @@index([vehicle_id], map: "idx_vehicle_issues_vehicle_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model vehicles {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id       String           @db.Uuid
+  manager_membership_id String?          @db.Uuid
+  name                  String           @db.VarChar(255)
+  license_plate         String           @db.VarChar(30)
+  brand                 String           @db.VarChar(100)
+  model                 String           @db.VarChar(100)
+  vin                   String?          @db.VarChar(50)
+  fuel_type             String           @db.VarChar(30)
+  current_odometer_km   Int
+  status                String           @default("ACTIVE") @db.VarChar(30)
+  note                  String?
+  archived_at           DateTime?        @db.Timestamptz(6)
+  created_at            DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime         @default(now()) @db.Timestamptz(6)
+  reservations          reservations[]
+  service_events        service_events[]
+  vehicle_issues        vehicle_issues[]
+  memberships           memberships?     @relation(fields: [manager_membership_id], references: [id], onUpdate: NoAction)
+  organizations         organizations    @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+
+  @@unique([organization_id, license_plate], map: "uq_vehicles_organization_license_plate")
+  @@unique([organization_id, vin], map: "uq_vehicles_organization_vin_not_null", where: raw("(vin IS NOT NULL)"))
+  @@index([manager_membership_id], map: "idx_vehicles_manager_membership_id")
+  @@index([organization_id], map: "idx_vehicles_organization_id")
+  @@index([status], map: "idx_vehicles_status")
+}
