@@ -1,6 +1,8 @@
 import {BadRequestException, ConflictException, Injectable, NotFoundException} from '@nestjs/common';
 import {PrismaService} from '../database/prisma.service';
 
+const RESERVATION_BUFFER_MINUTES = 15;
+
 @Injectable()
 export class AvailabilityService {
     constructor(private readonly prisma: PrismaService) {
@@ -60,6 +62,11 @@ export class AvailabilityService {
             throw new ConflictException('Vehicle is not active.');
         }
 
+        const bufferMs = RESERVATION_BUFFER_MINUTES * 60 * 1000;
+
+        const startAtWithBuffer = new Date(startAt.getTime() - bufferMs);
+        const endAtWithBuffer = new Date(endAt.getTime() + bufferMs);
+
         const reservationCollision = await this.prisma.reservation.findFirst({
             where: {
                 vehicleId,
@@ -72,10 +79,10 @@ export class AvailabilityService {
                     }
                     : {}),
                 startAt: {
-                    lt: endAt,
+                    lt: endAtWithBuffer,
                 },
                 endAt: {
-                    gt: startAt,
+                    gt: startAtWithBuffer,
                 },
             },
         });

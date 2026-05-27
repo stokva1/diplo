@@ -110,7 +110,7 @@ export class AuthService {
     ): Promise<string> {
         return this.jwtService.signAsync(payload, {
             secret: process.env.JWT_ACCESS_SECRET,
-            expiresIn: '15m',
+            expiresIn: '6h', //TODO: Change to like couple minutes for production
         });
     }
 
