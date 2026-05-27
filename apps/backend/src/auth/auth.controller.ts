@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import {AcceptInvitationDto} from "./dto/accept-invitation.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -32,6 +33,12 @@ export class AuthController {
     @Post('login')
     login(@Body() dto: LoginDto) {
         return this.authService.login(dto);
+    }
+
+    //TODO: Align with API design
+    @Post('accept-invitation')
+    acceptInvitation(@Body() dto: AcceptInvitationDto) {
+        return this.authService.acceptInvitation(dto);
     }
 }
 

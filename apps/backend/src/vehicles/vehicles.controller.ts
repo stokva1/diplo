@@ -14,6 +14,7 @@ import {CreateVehicleDto} from './dto/create-vehicle.dto';
 import {UpdateVehicleDto} from './dto/update-vehicle.dto';
 import {AvailableVehiclesQueryDto} from './dto/available-vehicles-query.dto';
 import {VehiclesService} from './vehicles.service';
+import {FindVehiclesQueryDto} from "./dto/find-vehicles-query.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -36,8 +37,11 @@ export class VehiclesController {
     }
 
     @Get()
-    findAll(@Req() request: AuthenticatedRequest) {
-        return this.vehiclesService.findAll(request.user);
+    findAll(
+        @Req() request: AuthenticatedRequest,
+        @Query() query: FindVehiclesQueryDto,
+    ) {
+        return this.vehiclesService.findAll(request.user, query);
     }
 
     @Get('available')
@@ -63,5 +67,13 @@ export class VehiclesController {
         @Body() dto: UpdateVehicleDto,
     ) {
         return this.vehiclesService.update(request.user, vehicleId, dto);
+    }
+
+    @Post(':vehicleId/archive')
+    archive(
+        @Req() request: AuthenticatedRequest,
+        @Param('vehicleId') vehicleId: string,
+    ) {
+        return this.vehiclesService.archive(request.user, vehicleId);
     }
 }

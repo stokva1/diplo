@@ -7,8 +7,11 @@ import {
 } from '@nestjs/common';
 import {AvailabilityService} from '../availability/availability.service';
 import {PrismaService} from '../database/prisma.service';
+import {VehicleIssuesService} from '../vehicle-issues/vehicle-issues.service';
 import {CreateReservationDto} from './dto/create-reservation.dto';
-import { UpdateReservationDto } from './dto/update-reservation.dto';
+import {UpdateReservationDto} from './dto/update-reservation.dto';
+import {CreateTripLogDto} from '../trip-logs/dto/create-trip-log.dto';
+import {CreateReservationIssueDto} from '../vehicle-issues/dto/create-reservation-issue.dto';
 
 type CurrentUser = {
     userId: string;
@@ -22,6 +25,7 @@ export class ReservationsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly availabilityService: AvailabilityService,
+        private readonly vehicleIssuesService: VehicleIssuesService,
     ) {
     }
 
@@ -341,5 +345,186 @@ export class ReservationsService {
         });
 
         return this.toReservationResponse(updatedReservation);
+    }
+
+    async getTripLog(currentUser: CurrentUser, reservationId: string) {
+        const reservation = await this.prisma.reservation.findFirst({
+            where: {
+                id: reservationId,
+                vehicle: {
+                    organizationId: currentUser.organizationId,
+                },
+            },
+            include: {
+                vehicle: true,
+                membership: {
+                    include: {
+                        user: true,
+                    },
+                },
+                tripLog: true,
+            },
+        });
+
+        if (!reservation) {
+            throw new NotFoundException('Reservation not found.');
+        }
+
+        const isOwner = reservation.membershipId === currentUser.membershipId;
+        const isAdmin = currentUser.role === 'ADMIN';
+        const isVehicleManager =
+            reservation.vehicle.managerMembershipId === currentUser.membershipId;
+
+        if (!isOwner && !isAdmin && !isVehicleManager) {
+            throw new ForbiddenException('You cannot view this trip log.');
+        }
+
+        if (!reservation.tripLog) {
+            throw new NotFoundException('Trip log not found.');
+        }
+
+        return {
+            id: reservation.tripLog.id,
+            reservationId: reservation.id,
+            vehicle: {
+                id: reservation.vehicle.id,
+                name: reservation.vehicle.name,
+                licensePlate: reservation.vehicle.licensePlate,
+            },
+            member: {
+                id: reservation.membership.id,
+                name: reservation.membership.user.name,
+                email: reservation.membership.user.email,
+            },
+            odometerStartKm: reservation.tripLog.odometerStartKm,
+            odometerEndKm: reservation.tripLog.odometerEndKm,
+            distanceKm: reservation.tripLog.distanceKm,
+            refueled: reservation.tripLog.refueled,
+            refuelingCost: reservation.tripLog.refuelingCost,
+            refuelingReceiptFileId: reservation.tripLog.refuelingReceiptFileId,
+            note: reservation.tripLog.note,
+            completedByMembershipId: reservation.tripLog.completedByMembershipId,
+            completedAt: reservation.tripLog.completedAt,
+            createdAt: reservation.tripLog.createdAt,
+            updatedAt: reservation.tripLog.updatedAt,
+        };
+    }
+
+    async createTripLog(
+        currentUser: CurrentUser,
+        reservationId: string,
+        dto: CreateTripLogDto,
+    ) {
+        const reservation = await this.prisma.reservation.findFirst({
+            where: {
+                id: reservationId,
+                vehicle: {
+                    organizationId: currentUser.organizationId,
+                },
+            },
+            include: {
+                vehicle: true,
+                membership: {
+                    include: {
+                        user: true,
+                    },
+                },
+                tripLog: true,
+            },
+        });
+
+        if (!reservation) {
+            throw new NotFoundException('Reservation not found.');
+        }
+
+        if (reservation.status === 'CANCELLED') {
+            throw new ConflictException('Cancelled reservation cannot have a trip log.');
+        }
+
+        if (reservation.endAt > new Date()) {
+            throw new ConflictException('Reservation has not ended yet.');
+        }
+
+        const isOwner = reservation.membershipId === currentUser.membershipId;
+        const isAdmin = currentUser.role === 'ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            throw new ForbiddenException('You cannot create trip log for this reservation.');
+        }
+
+        if (reservation.tripLog) {
+            throw new ConflictException('Trip log already exists.');
+        }
+
+        if (dto.odometerEndKm < dto.odometerStartKm) {
+            throw new BadRequestException(
+                'odometerEndKm must be greater than or equal to odometerStartKm.',
+            );
+        }
+
+        const tripLog = await this.prisma.tripLog.create({
+            data: {
+                reservationId: reservation.id,
+                odometerStartKm: dto.odometerStartKm,
+                odometerEndKm: dto.odometerEndKm,
+                refueled: dto.refueled,
+                refuelingCost: dto.refuelingCost,
+                refuelingReceiptFileId: dto.refuelingReceiptFileId,
+                note: dto.note,
+                completedByMembershipId: currentUser.membershipId,
+            },
+        });
+
+        const updatedVehicle =
+            dto.odometerEndKm > reservation.vehicle.currentOdometerKm
+                ? await this.prisma.vehicle.update({
+                    where: {
+                        id: reservation.vehicle.id,
+                    },
+                    data: {
+                        currentOdometerKm: dto.odometerEndKm,
+                        updatedAt: new Date(),
+                    },
+                })
+                : reservation.vehicle;
+
+        return {
+            id: tripLog.id,
+            reservationId: reservation.id,
+            vehicle: {
+                id: updatedVehicle.id,
+                name: updatedVehicle.name,
+                licensePlate: updatedVehicle.licensePlate,
+                currentOdometerKm: updatedVehicle.currentOdometerKm,
+            },
+            member: {
+                id: reservation.membership.id,
+                name: reservation.membership.user.name,
+                email: reservation.membership.user.email,
+            },
+            odometerStartKm: tripLog.odometerStartKm,
+            odometerEndKm: tripLog.odometerEndKm,
+            distanceKm: tripLog.distanceKm,
+            refueled: tripLog.refueled,
+            refuelingCost: tripLog.refuelingCost,
+            refuelingReceiptFileId: tripLog.refuelingReceiptFileId,
+            note: tripLog.note,
+            completedByMembershipId: tripLog.completedByMembershipId,
+            completedAt: tripLog.completedAt,
+            createdAt: tripLog.createdAt,
+            updatedAt: tripLog.updatedAt,
+        };
+    }
+
+    async createIssue(
+        currentUser: CurrentUser,
+        reservationId: string,
+        dto: CreateReservationIssueDto,
+    ) {
+        return this.vehicleIssuesService.createForReservation(
+            currentUser,
+            reservationId,
+            dto.description,
+        );
     }
 }

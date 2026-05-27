@@ -1,0 +1,72 @@
+import {Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards} from '@nestjs/common';
+import {Request} from 'express';
+import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
+import {CreateServiceEventDto} from './dto/create-service-event.dto';
+import {ServiceEventsService} from './service-events.service';
+import {UpdateServiceEventDto} from "./dto/update-service-event.dto";
+
+type AuthenticatedRequest = Request & {
+    user: {
+        userId: string;
+        membershipId: string;
+        organizationId: string;
+        role: string;
+    };
+};
+
+@UseGuards(JwtAuthGuard)
+@Controller()
+export class ServiceEventsController {
+    constructor(private readonly serviceEventsService: ServiceEventsService) {
+    }
+
+    @Post('vehicles/:vehicleId/service-events')
+    create(
+        @Req() request: AuthenticatedRequest,
+        @Param('vehicleId') vehicleId: string,
+        @Body() dto: CreateServiceEventDto,
+    ) {
+        return this.serviceEventsService.create(request.user, vehicleId, dto);
+    }
+
+    @Get('service-events')
+    findAll(
+        @Req() request: AuthenticatedRequest,
+        @Query('scope') scope?: string,
+    ) {
+        return this.serviceEventsService.findAll(request.user, scope);
+    }
+
+    @Get('vehicles/:vehicleId/service-events')
+    findByVehicle(
+        @Req() request: AuthenticatedRequest,
+        @Param('vehicleId') vehicleId: string,
+    ) {
+        return this.serviceEventsService.findByVehicle(request.user, vehicleId);
+    }
+
+    @Post('service-events/:serviceEventId/cancel')
+    cancel(
+        @Req() request: AuthenticatedRequest,
+        @Param('serviceEventId') serviceEventId: string,
+    ) {
+        return this.serviceEventsService.cancel(request.user, serviceEventId);
+    }
+
+    @Get('service-events/:serviceEventId')
+    findOne(
+        @Req() request: AuthenticatedRequest,
+        @Param('serviceEventId') serviceEventId: string,
+    ) {
+        return this.serviceEventsService.findOne(request.user, serviceEventId);
+    }
+
+    @Patch('service-events/:serviceEventId')
+    update(
+        @Req() request: AuthenticatedRequest,
+        @Param('serviceEventId') serviceEventId: string,
+        @Body() dto: UpdateServiceEventDto,
+    ) {
+        return this.serviceEventsService.update(request.user, serviceEventId, dto);
+    }
+}

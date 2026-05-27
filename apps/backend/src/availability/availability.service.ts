@@ -17,10 +17,37 @@ export class AvailabilityService {
             throw new BadRequestException('endAt must be after startAt.');
         }
 
+        const bufferMs = RESERVATION_BUFFER_MINUTES * 60 * 1000;
+
+        const startAtWithBuffer = new Date(startAt.getTime() - bufferMs);
+        const endAtWithBuffer = new Date(endAt.getTime() + bufferMs);
+
         const vehicles = await this.prisma.vehicle.findMany({
             where: {
                 organizationId,
                 status: 'ACTIVE',
+                reservations: {
+                    none: {
+                        status: 'ACTIVE',
+                        startAt: {
+                            lt: endAtWithBuffer,
+                        },
+                        endAt: {
+                            gt: startAtWithBuffer,
+                        },
+                    },
+                },
+                serviceEvents: {
+                    none: {
+                        status: 'ACTIVE',
+                        startAt: {
+                            lt: endAt,
+                        },
+                        endAt: {
+                            gt: startAt,
+                        },
+                    },
+                },
             },
             orderBy: {
                 name: 'asc',
@@ -106,6 +133,78 @@ export class AvailabilityService {
 
         if (serviceCollision) {
             throw new ConflictException('Vehicle is blocked by service in this time range.');
+        }
+    }
+
+    async assertServiceEventDoesNotCollideWithReservations(
+        organizationId: string,
+        vehicleId: string,
+        startAt: Date,
+        endAt: Date,
+        ignoredServiceEventId?: string,
+    ) {
+        if (endAt <= startAt) {
+            throw new BadRequestException('endAt must be after startAt.');
+        }
+
+        const vehicle = await this.prisma.vehicle.findFirst({
+            where: {
+                id: vehicleId,
+                organizationId,
+            },
+        });
+
+        if (!vehicle) {
+            throw new NotFoundException('Vehicle not found.');
+        }
+
+        if (vehicle.status === 'ARCHIVED') {
+            throw new ConflictException('Archived vehicle cannot have service events.');
+        }
+
+        const reservationCollision = await this.prisma.reservation.findFirst({
+            where: {
+                vehicleId,
+                status: 'ACTIVE',
+                startAt: {
+                    lt: endAt,
+                },
+                endAt: {
+                    gt: startAt,
+                },
+            },
+        });
+
+        if (reservationCollision) {
+            throw new ConflictException(
+                'Service event collides with an active reservation.',
+            );
+        }
+
+        const serviceCollision = await this.prisma.serviceEvent.findFirst({
+            where: {
+                vehicleId,
+                status: 'ACTIVE',
+                ...(ignoredServiceEventId
+                    ? {
+                        NOT: {
+                            id: ignoredServiceEventId,
+                        },
+                    }
+                    : {}),
+                startAt: {
+                    lt: endAt,
+                },
+                endAt: {
+                    gt: startAt,
+                },
+            },
+        });
+
+        if (serviceCollision) {
+            throw new ConflictException(
+                'Service event collides with another service event.',
+            );
         }
     }
 }

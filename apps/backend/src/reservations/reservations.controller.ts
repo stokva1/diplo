@@ -3,6 +3,8 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
+import { CreateTripLogDto } from '../trip-logs/dto/create-trip-log.dto';
+import { CreateReservationIssueDto } from '../vehicle-issues/dto/create-reservation-issue.dto';
 import { ReservationsService } from './reservations.service';
 
 type AuthenticatedRequest = Request & {
@@ -35,6 +37,27 @@ export class ReservationsController {
         return this.reservationsService.findAll(request.user, scope);
     }
 
+    @Get(':reservationId/trip-log')
+    getTripLog(
+        @Req() request: AuthenticatedRequest,
+        @Param('reservationId') reservationId: string,
+    ) {
+        return this.reservationsService.getTripLog(request.user, reservationId);
+    }
+
+    @Post(':reservationId/trip-log')
+    createTripLog(
+        @Req() request: AuthenticatedRequest,
+        @Param('reservationId') reservationId: string,
+        @Body() dto: CreateTripLogDto,
+    ) {
+        return this.reservationsService.createTripLog(
+            request.user,
+            reservationId,
+            dto,
+        );
+    }
+
     @Get(':reservationId')
     findOne(
         @Req() request: AuthenticatedRequest,
@@ -59,4 +82,18 @@ export class ReservationsController {
     ) {
         return this.reservationsService.update(request.user, reservationId, dto);
     }
+
+    @Post(':reservationId/issues')
+    createIssue(
+        @Req() request: AuthenticatedRequest,
+        @Param('reservationId') reservationId: string,
+        @Body() dto: CreateReservationIssueDto,
+    ) {
+        return this.reservationsService.createIssue(
+            request.user,
+            reservationId,
+            dto,
+        );
+    }
+
 }

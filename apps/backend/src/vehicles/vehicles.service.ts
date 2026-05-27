@@ -9,6 +9,7 @@ import {AvailabilityService} from '../availability/availability.service';
 import {CreateVehicleDto} from './dto/create-vehicle.dto';
 import {UpdateVehicleDto} from './dto/update-vehicle.dto';
 import {AvailableVehiclesQueryDto} from './dto/available-vehicles-query.dto';
+import {FindVehiclesQueryDto} from "./dto/find-vehicles-query.dto";
 
 type CurrentUser = {
     userId: string;
@@ -73,18 +74,82 @@ export class VehiclesService {
         return this.toVehicleResponse(vehicle);
     }
 
-    async findAll(currentUser: CurrentUser) {
+    async findAll(currentUser: CurrentUser, query: FindVehiclesQueryDto) {
         if (currentUser.role !== 'ADMIN') {
             throw new ForbiddenException('Only administrator can list vehicles.');
         }
 
+        const includeArchived = query.includeArchived === 'true';
+
+        const where: any = {
+            organizationId: currentUser.organizationId,
+        };
+
+        if (query.status) {
+            where.status = query.status;
+        } else if (!includeArchived) {
+            where.status = {
+                not: 'ARCHIVED',
+            };
+        }
+
+        if (query.managerId) {
+            where.managerMembershipId = query.managerId;
+        }
+
+        if (query.brand) {
+            where.brand = {
+                equals: query.brand,
+                mode: 'insensitive',
+            };
+        }
+
+        if (query.search) {
+            where.OR = [
+                {
+                    name: {
+                        contains: query.search,
+                        mode: 'insensitive',
+                    },
+                },
+                {
+                    licensePlate: {
+                        contains: query.search,
+                        mode: 'insensitive',
+                    },
+                },
+                {
+                    brand: {
+                        contains: query.search,
+                        mode: 'insensitive',
+                    },
+                },
+                {
+                    model: {
+                        contains: query.search,
+                        mode: 'insensitive',
+                    },
+                },
+            ];
+        }
+
         const vehicles = await this.prisma.vehicle.findMany({
-            where: {
-                organizationId: currentUser.organizationId,
+            where,
+            include: {
+                managerMembership: {
+                    include: {
+                        user: true,
+                    },
+                },
             },
-            orderBy: {
-                createdAt: 'desc',
-            },
+            orderBy: [
+                {
+                    status: 'asc',
+                },
+                {
+                    name: 'asc',
+                },
+            ],
         });
 
         return {
@@ -104,7 +169,15 @@ export class VehiclesService {
             currentOdometerKm: vehicle.currentOdometerKm,
             status: vehicle.status,
             managerMembershipId: vehicle.managerMembershipId,
+            manager: vehicle.managerMembership
+                ? {
+                    id: vehicle.managerMembership.id,
+                    name: vehicle.managerMembership.user.name,
+                    email: vehicle.managerMembership.user.email,
+                }
+                : null,
             note: vehicle.note,
+            archivedAt: vehicle.archivedAt,
             createdAt: vehicle.createdAt,
             updatedAt: vehicle.updatedAt,
         };
@@ -223,5 +296,55 @@ export class VehiclesService {
         return {
             data: vehicles,
         };
+    }
+
+    async archive(currentUser: CurrentUser, vehicleId: string) {
+        if (currentUser.role !== 'ADMIN') {
+            throw new ForbiddenException('Only administrator can archive vehicles.');
+        }
+
+        const vehicle = await this.prisma.vehicle.findFirst({
+            where: {
+                id: vehicleId,
+                organizationId: currentUser.organizationId,
+            },
+        });
+
+        if (!vehicle) {
+            throw new NotFoundException('Vehicle not found.');
+        }
+
+        if (vehicle.status === 'ARCHIVED') {
+            return this.toVehicleResponse(vehicle);
+        }
+
+        const futureReservation = await this.prisma.reservation.findFirst({
+            where: {
+                vehicleId: vehicle.id,
+                status: 'ACTIVE',
+                startAt: {
+                    gt: new Date(),
+                },
+            },
+        });
+
+        if (futureReservation) {
+            throw new ConflictException(
+                'Vehicle has future active reservations and cannot be archived.',
+            );
+        }
+
+        const archivedVehicle = await this.prisma.vehicle.update({
+            where: {
+                id: vehicle.id,
+            },
+            data: {
+                status: 'ARCHIVED',
+                archivedAt: new Date(),
+                updatedAt: new Date(),
+            },
+        });
+
+        return this.toVehicleResponse(archivedVehicle);
     }
 }
