@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     ConflictException,
     ForbiddenException,
     Injectable,
@@ -10,6 +11,9 @@ import {CreateVehicleDto} from './dto/create-vehicle.dto';
 import {UpdateVehicleDto} from './dto/update-vehicle.dto';
 import {AvailableVehiclesQueryDto} from './dto/available-vehicles-query.dto';
 import {FindVehiclesQueryDto} from "./dto/find-vehicles-query.dto";
+import {CreateReservationIssueDto} from "../vehicle-issues/dto/create-reservation-issue.dto";
+import {buildPaginationMeta, getPagination} from "../common/pagination";
+import {AuditService} from "../audit/audit.service";
 
 type CurrentUser = {
     userId: string;
@@ -23,6 +27,7 @@ export class VehiclesService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly availabilityService: AvailabilityService,
+        private readonly auditService: AuditService,
     ) {
     }
 
@@ -58,7 +63,7 @@ export class VehiclesService {
         const vehicle = await this.prisma.vehicle.create({
             data: {
                 organizationId: currentUser.organizationId,
-                managerMembershipId: dto.managerMembershipId,
+                managerMembershipId: dto.managerMemberId,
                 name: dto.name,
                 licensePlate: dto.licensePlate,
                 brand: dto.brand,
@@ -75,33 +80,45 @@ export class VehiclesService {
     }
 
     async findAll(currentUser: CurrentUser, query: FindVehiclesQueryDto) {
-        if (currentUser.role !== 'ADMIN') {
-            throw new ForbiddenException('Only administrator can list vehicles.');
+        const scope = query.scope ?? (currentUser.role === 'ADMIN' ? 'all' : 'managed');
+
+        if (!['all', 'managed'].includes(scope)) {
+            throw new BadRequestException('Invalid vehicle scope.');
         }
 
-        const includeArchived = query.includeArchived === 'true';
+        if (scope === 'all' && currentUser.role !== 'ADMIN') {
+            throw new ForbiddenException('Only administrator can view all vehicles.');
+        }
+
+        if (query.managerId && currentUser.role !== 'ADMIN') {
+            throw new ForbiddenException('Only administrator can filter by manager.');
+        }
 
         const where: any = {
             organizationId: currentUser.organizationId,
         };
 
+        if (scope === 'managed') {
+            where.managerMembershipId =
+                currentUser.role === 'ADMIN' && query.managerId
+                    ? query.managerId
+                    : currentUser.membershipId;
+        }
+
+        if (scope === 'all' && query.managerId) {
+            where.managerMembershipId = query.managerId;
+        }
+
         if (query.status) {
             where.status = query.status;
-        } else if (!includeArchived) {
+        } else if (query.includeArchived !== 'true') {
             where.status = {
                 not: 'ARCHIVED',
             };
         }
 
-        if (query.managerId) {
-            where.managerMembershipId = query.managerId;
-        }
-
         if (query.brand) {
-            where.brand = {
-                equals: query.brand,
-                mode: 'insensitive',
-            };
+            where.brand = query.brand;
         }
 
         if (query.search) {
@@ -133,27 +150,34 @@ export class VehiclesService {
             ];
         }
 
-        const vehicles = await this.prisma.vehicle.findMany({
-            where,
-            include: {
-                managerMembership: {
-                    include: {
-                        user: true,
+        const {page, limit, skip, take} = getPagination(query);
+
+        const [vehicles, total] = await this.prisma.$transaction([
+            this.prisma.vehicle.findMany({
+                where,
+                include: {
+                    managerMembership: {
+                        include: {
+                            user: true,
+                        },
                     },
                 },
-            },
-            orderBy: [
-                {
-                    status: 'asc',
-                },
-                {
-                    name: 'asc',
-                },
-            ],
-        });
+                orderBy: this.getOrderBy(query.sort),
+                skip,
+                take,
+            }),
+            this.prisma.vehicle.count({
+                where,
+            }),
+        ]);
 
         return {
             data: vehicles.map((vehicle) => this.toVehicleResponse(vehicle)),
+            pagination: buildPaginationMeta({
+                page,
+                limit,
+                total,
+            }),
         };
     }
 
@@ -168,12 +192,11 @@ export class VehiclesService {
             fuelType: vehicle.fuelType,
             currentOdometerKm: vehicle.currentOdometerKm,
             status: vehicle.status,
-            managerMembershipId: vehicle.managerMembershipId,
+            managerMemberId: vehicle.managerMembershipId,
             manager: vehicle.managerMembership
                 ? {
                     id: vehicle.managerMembership.id,
                     name: vehicle.managerMembership.user.name,
-                    email: vehicle.managerMembership.user.email,
                 }
                 : null,
             note: vehicle.note,
@@ -184,19 +207,30 @@ export class VehiclesService {
     }
 
     async findOne(currentUser: CurrentUser, vehicleId: string) {
-        if (currentUser.role !== 'ADMIN') {
-            throw new ForbiddenException('Only administrator can view vehicle detail.');
-        }
-
         const vehicle = await this.prisma.vehicle.findFirst({
             where: {
                 id: vehicleId,
                 organizationId: currentUser.organizationId,
             },
+            include: {
+                managerMembership: {
+                    include: {
+                        user: true,
+                    },
+                },
+            },
         });
 
         if (!vehicle) {
             throw new NotFoundException('Vehicle not found.');
+        }
+
+        const isAdmin = currentUser.role === 'ADMIN';
+        const isVehicleManager =
+            vehicle.managerMembershipId === currentUser.membershipId;
+
+        if (!isAdmin && !isVehicleManager) {
+            throw new ForbiddenException('You cannot view this vehicle.');
         }
 
         return this.toVehicleResponse(vehicle);
@@ -207,19 +241,57 @@ export class VehiclesService {
         vehicleId: string,
         dto: UpdateVehicleDto,
     ) {
-        if (currentUser.role !== 'ADMIN') {
-            throw new ForbiddenException('Only administrator can update vehicles.');
-        }
-
         const existingVehicle = await this.prisma.vehicle.findFirst({
             where: {
                 id: vehicleId,
                 organizationId: currentUser.organizationId,
             },
+            include: {
+                managerMembership: {
+                    include: {
+                        user: true,
+                    },
+                },
+            },
         });
 
         if (!existingVehicle) {
             throw new NotFoundException('Vehicle not found.');
+        }
+
+        const isAdmin = currentUser.role === 'ADMIN';
+        const isVehicleManager =
+            existingVehicle.managerMembershipId === currentUser.membershipId;
+
+        if (!isAdmin && !isVehicleManager) {
+            throw new ForbiddenException('You cannot update this vehicle.');
+        }
+
+        if (!isAdmin) {
+            const forbiddenFieldsForManager = [
+                dto.name,
+                dto.licensePlate,
+                dto.brand,
+                dto.model,
+                dto.vin,
+                dto.fuelType,
+                dto.managerMemberId,
+            ].some((value) => value !== undefined);
+
+            if (forbiddenFieldsForManager) {
+                throw new ForbiddenException(
+                    'Vehicle manager can update only currentOdometerKm, status and note.',
+                );
+            }
+
+            if (
+                dto.status !== undefined &&
+                !['ACTIVE', 'UNAVAILABLE'].includes(dto.status)
+            ) {
+                throw new ForbiddenException(
+                    'Vehicle manager can set only ACTIVE or UNAVAILABLE status.',
+                );
+            }
         }
 
         if (
@@ -259,25 +331,107 @@ export class VehiclesService {
             }
         }
 
-        const vehicle = await this.prisma.vehicle.update({
-            where: {
-                id: vehicleId,
-            },
-            data: {
-                name: dto.name,
-                licensePlate: dto.licensePlate,
-                brand: dto.brand,
-                model: dto.model,
-                vin: dto.vin,
-                fuelType: dto.fuelType,
-                currentOdometerKm: dto.currentOdometerKm,
-                status: dto.status,
-                managerMembershipId: dto.managerMembershipId,
-                note: dto.note,
-            },
+        const oldValues = {
+            name: existingVehicle.name,
+            licensePlate: existingVehicle.licensePlate,
+            brand: existingVehicle.brand,
+            model: existingVehicle.model,
+            vin: existingVehicle.vin,
+            fuelType: existingVehicle.fuelType,
+            currentOdometerKm: existingVehicle.currentOdometerKm,
+            status: existingVehicle.status,
+            managerMemberId: existingVehicle.managerMembershipId,
+            note: existingVehicle.note,
+        };
+
+        const now = new Date();
+
+        const result = await this.prisma.$transaction(async (tx) => {
+            const updatedVehicle = await tx.vehicle.update({
+                where: {
+                    id: vehicleId,
+                },
+                data: {
+                    name: dto.name,
+                    licensePlate: dto.licensePlate,
+                    brand: dto.brand,
+                    model: dto.model,
+                    vin: dto.vin,
+                    fuelType: dto.fuelType,
+                    currentOdometerKm: dto.currentOdometerKm,
+                    status: dto.status,
+                    managerMembershipId: dto.managerMemberId,
+                    note: dto.note,
+                    updatedAt: now,
+                },
+                include: {
+                    managerMembership: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                },
+            });
+
+            const shouldCancelFutureReservations =
+                dto.status === 'UNAVAILABLE' &&
+                existingVehicle.status !== 'UNAVAILABLE';
+
+            const cancelledReservations = shouldCancelFutureReservations
+                ? await tx.reservation.updateMany({
+                    where: {
+                        vehicleId: existingVehicle.id,
+                        status: 'ACTIVE',
+                        startAt: {
+                            gt: now,
+                        },
+                    },
+                    data: {
+                        status: 'CANCELLED',
+                        cancelledAt: now,
+                        cancelledByMembershipId: currentUser.membershipId,
+                        updatedAt: now,
+                    },
+                })
+                : {count: 0};
+
+            return {
+                updatedVehicle,
+                cancelledFutureReservationsCount: cancelledReservations.count,
+            };
         });
 
-        return this.toVehicleResponse(vehicle);
+        const updatedVehicle = result.updatedVehicle;
+
+        const newValues = {
+            name: updatedVehicle.name,
+            licensePlate: updatedVehicle.licensePlate,
+            brand: updatedVehicle.brand,
+            model: updatedVehicle.model,
+            vin: updatedVehicle.vin,
+            fuelType: updatedVehicle.fuelType,
+            currentOdometerKm: updatedVehicle.currentOdometerKm,
+            status: updatedVehicle.status,
+            managerMemberId: updatedVehicle.managerMembershipId,
+            note: updatedVehicle.note,
+            cancelledFutureReservationsCount:
+            result.cancelledFutureReservationsCount,
+        };
+
+        await this.auditService.create({
+            organizationId: currentUser.organizationId,
+            actorMembershipId: currentUser.membershipId,
+            action: 'VEHICLE_UPDATED',
+            entityType: 'Vehicle',
+            entityId: updatedVehicle.id,
+            oldValues,
+            newValues,
+        });
+
+        return {
+            ...this.toVehicleResponse(updatedVehicle),
+            cancelledFutureReservationsCount: result.cancelledFutureReservationsCount,
+        };
     }
 
     async findAvailable(
@@ -293,8 +447,16 @@ export class VehiclesService {
             endAt,
         );
 
+        const { page, limit, skip, take } = getPagination(query);
+        const paginatedVehicles = vehicles.slice(skip, skip + take);
+
         return {
-            data: vehicles,
+            data: paginatedVehicles,
+            pagination: buildPaginationMeta({
+                page,
+                limit,
+                total: vehicles.length,
+            }),
         };
     }
 
@@ -308,6 +470,13 @@ export class VehiclesService {
                 id: vehicleId,
                 organizationId: currentUser.organizationId,
             },
+            include: {
+                managerMembership: {
+                    include: {
+                        user: true,
+                    },
+                },
+            },
         });
 
         if (!vehicle) {
@@ -315,36 +484,233 @@ export class VehiclesService {
         }
 
         if (vehicle.status === 'ARCHIVED') {
-            return this.toVehicleResponse(vehicle);
+            return {
+                ...this.toVehicleResponse(vehicle),
+                cancelledFutureReservationsCount: 0,
+            };
         }
 
-        const futureReservation = await this.prisma.reservation.findFirst({
+        const oldValues = {
+            status: vehicle.status,
+            archivedAt: vehicle.archivedAt,
+        };
+
+        const now = new Date();
+
+        const result = await this.prisma.$transaction(async (tx) => {
+            const cancelledReservations = await tx.reservation.updateMany({
+                where: {
+                    vehicleId: vehicle.id,
+                    status: 'ACTIVE',
+                    startAt: {
+                        gt: now,
+                    },
+                },
+                data: {
+                    status: 'CANCELLED',
+                    cancelledAt: now,
+                    cancelledByMembershipId: currentUser.membershipId,
+                    updatedAt: now,
+                },
+            });
+
+            const archivedVehicle = await tx.vehicle.update({
+                where: {
+                    id: vehicle.id,
+                },
+                data: {
+                    status: 'ARCHIVED',
+                    archivedAt: now,
+                    updatedAt: now,
+                },
+                include: {
+                    managerMembership: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                },
+            });
+
+            return {
+                archivedVehicle,
+                cancelledFutureReservationsCount: cancelledReservations.count,
+            };
+        });
+
+        const newValues = {
+            status: result.archivedVehicle.status,
+            archivedAt: result.archivedVehicle.archivedAt,
+            cancelledFutureReservationsCount:
+            result.cancelledFutureReservationsCount,
+        };
+
+        await this.auditService.create({
+            organizationId: currentUser.organizationId,
+            actorMembershipId: currentUser.membershipId,
+            action: 'VEHICLE_ARCHIVED',
+            entityType: 'Vehicle',
+            entityId: result.archivedVehicle.id,
+            oldValues,
+            newValues,
+        });
+
+        return {
+            ...this.toVehicleResponse(result.archivedVehicle),
+            cancelledFutureReservationsCount:
+            result.cancelledFutureReservationsCount,
+        };
+    }
+
+    async createIssue(
+        currentUser: CurrentUser,
+        vehicleId: string,
+        dto: CreateReservationIssueDto,
+    ) {
+        const vehicle = await this.prisma.vehicle.findFirst({
             where: {
-                vehicleId: vehicle.id,
-                status: 'ACTIVE',
-                startAt: {
-                    gt: new Date(),
+                id: vehicleId,
+                organizationId: currentUser.organizationId,
+                status: {
+                    not: 'ARCHIVED',
                 },
             },
         });
 
-        if (futureReservation) {
-            throw new ConflictException(
-                'Vehicle has future active reservations and cannot be archived.',
-            );
+        if (!vehicle) {
+            throw new NotFoundException('Vehicle not found.');
         }
 
-        const archivedVehicle = await this.prisma.vehicle.update({
-            where: {
-                id: vehicle.id,
-            },
+        if (dto.photoFileIds?.length) {
+            const files = await this.prisma.fileAttachment.findMany({
+                where: {
+                    id: {
+                        in: dto.photoFileIds,
+                    },
+                    organizationId: currentUser.organizationId,
+                    deletedAt: null,
+                },
+            });
+
+            if (files.length !== dto.photoFileIds.length) {
+                throw new NotFoundException('One or more issue photo files were not found.');
+            }
+
+            const invalidPurposeFile = files.find(
+                (file) => file.purpose !== 'ISSUE_PHOTO',
+            );
+
+            if (invalidPurposeFile) {
+                throw new BadRequestException(
+                    'Issue photos must be uploaded with purpose ISSUE_PHOTO.',
+                );
+            }
+        }
+
+        const issue = await this.prisma.vehicleIssue.create({
             data: {
-                status: 'ARCHIVED',
-                archivedAt: new Date(),
-                updatedAt: new Date(),
+                vehicleId: vehicle.id,
+                reservationId: null,
+                reportedByMembershipId: currentUser.membershipId,
+                description: dto.description,
+                status: 'OPEN',
+                vehicleIssueAttachments: dto.photoFileIds?.length
+                    ? {
+                        create: dto.photoFileIds.map((fileId) => ({
+                            fileAttachmentId: fileId,
+                        })),
+                    }
+                    : undefined,
+            },
+            include: {
+                vehicle: true,
+                reservation: true,
+                reportedByMembership: {
+                    include: {
+                        user: true,
+                    },
+                },
+                resolvedByMembership: {
+                    include: {
+                        user: true,
+                    },
+                },
+                vehicleIssueAttachments: {
+                    include: {
+                        fileAttachment: true,
+                    },
+                },
             },
         });
 
-        return this.toVehicleResponse(archivedVehicle);
+        return {
+            id: issue.id,
+            vehicle: {
+                id: issue.vehicle.id,
+                name: issue.vehicle.name,
+                licensePlate: issue.vehicle.licensePlate,
+            },
+            reservationId: issue.reservationId,
+            reservation: issue.reservation
+                ? {
+                    id: issue.reservation.id,
+                    startAt: issue.reservation.startAt,
+                    endAt: issue.reservation.endAt,
+                    origin: issue.reservation.origin,
+                    destination: issue.reservation.destination,
+                }
+                : null,
+            reportedBy: {
+                id: issue.reportedByMembership.id,
+                name: issue.reportedByMembership.user.name,
+                email: issue.reportedByMembership.user.email,
+            },
+            description: issue.description,
+            status: issue.status,
+            photos: issue.vehicleIssueAttachments
+                ? issue.vehicleIssueAttachments.map((attachment) => ({
+                    id: attachment.fileAttachment.id,
+                    fileName: attachment.fileAttachment.fileName,
+                }))
+                : [],
+            resolvedBy: issue.resolvedByMembership
+                ? {
+                    id: issue.resolvedByMembership.id,
+                    name: issue.resolvedByMembership.user.name,
+                    email: issue.resolvedByMembership.user.email,
+                }
+                : null,
+            resolvedByMembershipId: issue.resolvedByMembershipId,
+            resolvedAt: issue.resolvedAt,
+            createdAt: issue.createdAt,
+            updatedAt: issue.updatedAt,
+        };
+    }
+
+    private getOrderBy(sort?: string) {
+        switch (sort) {
+            case 'name':
+                return [{name: 'asc' as const}];
+            case '-name':
+                return [{name: 'desc' as const}];
+            case 'licensePlate':
+                return [{licensePlate: 'asc' as const}];
+            case '-licensePlate':
+                return [{licensePlate: 'desc' as const}];
+            case 'brand':
+                return [{brand: 'asc' as const}, {name: 'asc' as const}];
+            case '-brand':
+                return [{brand: 'desc' as const}, {name: 'asc' as const}];
+            case 'status':
+                return [{status: 'asc' as const}, {name: 'asc' as const}];
+            case '-status':
+                return [{status: 'desc' as const}, {name: 'asc' as const}];
+            case 'createdAt':
+                return [{createdAt: 'asc' as const}];
+            case '-createdAt':
+                return [{createdAt: 'desc' as const}];
+            default:
+                return [{status: 'asc' as const}, {name: 'asc' as const}];
+        }
     }
 }

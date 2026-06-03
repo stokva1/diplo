@@ -4,10 +4,12 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { AvailabilityService } from '../availability/availability.service';
-import { PrismaService } from '../database/prisma.service';
-import { CreateServiceEventDto } from './dto/create-service-event.dto';
+import {AvailabilityService} from '../availability/availability.service';
+import {PrismaService} from '../database/prisma.service';
+import {CreateServiceEventDto} from './dto/create-service-event.dto';
 import {UpdateServiceEventDto} from "./dto/update-service-event.dto";
+import {FindServiceEventsQueryDto} from "./dto/find-service-events-query.dto";
+import {buildPaginationMeta, getPagination} from "../common/pagination";
 
 type CurrentUser = {
     userId: string;
@@ -21,7 +23,8 @@ export class ServiceEventsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly availabilityService: AvailabilityService,
-    ) {}
+    ) {
+    }
 
     async create(
         currentUser: CurrentUser,
@@ -59,6 +62,26 @@ export class ServiceEventsService {
             endAt,
         );
 
+        if (dto.invoiceFileId) {
+            const file = await this.prisma.fileAttachment.findFirst({
+                where: {
+                    id: dto.invoiceFileId,
+                    organizationId: currentUser.organizationId,
+                    deletedAt: null,
+                },
+            });
+
+            if (!file) {
+                throw new NotFoundException('Invoice file not found.');
+            }
+
+            if (file.purpose !== 'SERVICE_INVOICE') {
+                throw new BadRequestException(
+                    'Invoice file must be uploaded with purpose SERVICE_INVOICE.',
+                );
+            }
+        }
+
         const serviceEvent = await this.prisma.serviceEvent.create({
             data: {
                 vehicleId,
@@ -73,6 +96,7 @@ export class ServiceEventsService {
             },
             include: {
                 vehicle: true,
+                invoiceFile: true,
                 createdByMembership: {
                     include: {
                         user: true,
@@ -102,7 +126,12 @@ export class ServiceEventsService {
             startAt: serviceEvent.startAt,
             endAt: serviceEvent.endAt,
             cost: serviceEvent.cost,
-            invoiceFileId: serviceEvent.invoiceFileId,
+            invoiceFile: serviceEvent.invoiceFile
+                ? {
+                    id: serviceEvent.invoiceFile.id,
+                    fileName: serviceEvent.invoiceFile.fileName,
+                }
+                : null,
             status: serviceEvent.status,
             cancelledAt: serviceEvent.cancelledAt,
             cancelledByMembershipId: serviceEvent.cancelledByMembershipId,
@@ -111,7 +140,9 @@ export class ServiceEventsService {
         };
     }
 
-    async findAll(currentUser: CurrentUser, scope = 'managed') {
+    async findAll(currentUser: CurrentUser, query: FindServiceEventsQueryDto) {
+        const scope = query.scope ?? 'managed';
+
         if (!['managed', 'all'].includes(scope)) {
             throw new BadRequestException('Invalid service event scope.');
         }
@@ -122,7 +153,7 @@ export class ServiceEventsService {
             );
         }
 
-        const where =
+        const where: any =
             scope === 'all'
                 ? {
                     vehicle: {
@@ -136,29 +167,62 @@ export class ServiceEventsService {
                     },
                 };
 
-        const serviceEvents = await this.prisma.serviceEvent.findMany({
-            where,
-            include: {
-                vehicle: true,
-                createdByMembership: {
-                    include: {
-                        user: true,
+        if (query.vehicleId) {
+            where.vehicleId = query.vehicleId;
+        }
+
+        if (query.from || query.to) {
+            where.startAt = {};
+
+            if (query.from) {
+                where.startAt.gte = new Date(query.from);
+            }
+
+            if (query.to) {
+                where.startAt.lte = new Date(query.to);
+            }
+        }
+
+        const {page, limit, skip, take} = getPagination(query);
+
+        const [serviceEvents, total] = await this.prisma.$transaction([
+            this.prisma.serviceEvent.findMany({
+                where,
+                include: {
+                    vehicle: true,
+                    invoiceFile: true,
+                    createdByMembership: {
+                        include: {
+                            user: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                startAt: 'desc',
-            },
-        });
+                orderBy: this.getOrderBy(query.sort),
+                skip,
+                take,
+            }),
+            this.prisma.serviceEvent.count({
+                where,
+            }),
+        ]);
 
         return {
             data: serviceEvents.map((serviceEvent) =>
                 this.toServiceEventResponse(serviceEvent),
             ),
+            pagination: buildPaginationMeta({
+                page,
+                limit,
+                total,
+            }),
         };
     }
 
-    async findByVehicle(currentUser: CurrentUser, vehicleId: string) {
+    async findByVehicle(
+        currentUser: CurrentUser,
+        vehicleId: string,
+        query: FindServiceEventsQueryDto,
+    ) {
         const vehicle = await this.prisma.vehicle.findFirst({
             where: {
                 id: vehicleId,
@@ -179,27 +243,54 @@ export class ServiceEventsService {
             );
         }
 
-        const serviceEvents = await this.prisma.serviceEvent.findMany({
-            where: {
-                vehicleId,
-            },
-            include: {
-                vehicle: true,
-                createdByMembership: {
-                    include: {
-                        user: true,
+        const where: any = {
+            vehicleId,
+        };
+
+        if (query.from || query.to) {
+            where.startAt = {};
+
+            if (query.from) {
+                where.startAt.gte = new Date(query.from);
+            }
+
+            if (query.to) {
+                where.startAt.lte = new Date(query.to);
+            }
+        }
+
+        const {page, limit, skip, take} = getPagination(query);
+
+        const [serviceEvents, total] = await this.prisma.$transaction([
+            this.prisma.serviceEvent.findMany({
+                where,
+                include: {
+                    vehicle: true,
+                    invoiceFile: true,
+                    createdByMembership: {
+                        include: {
+                            user: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                startAt: 'desc',
-            },
-        });
+                orderBy: this.getOrderBy(query.sort),
+                skip,
+                take,
+            }),
+            this.prisma.serviceEvent.count({
+                where,
+            }),
+        ]);
 
         return {
             data: serviceEvents.map((serviceEvent) =>
                 this.toServiceEventResponse(serviceEvent),
             ),
+            pagination: buildPaginationMeta({
+                page,
+                limit,
+                total,
+            }),
         };
     }
 
@@ -213,6 +304,7 @@ export class ServiceEventsService {
             },
             include: {
                 vehicle: true,
+                invoiceFile: true,
                 createdByMembership: {
                     include: {
                         user: true,
@@ -252,6 +344,7 @@ export class ServiceEventsService {
             },
             include: {
                 vehicle: true,
+                invoiceFile: true,
                 createdByMembership: {
                     include: {
                         user: true,
@@ -299,6 +392,26 @@ export class ServiceEventsService {
             );
         }
 
+        if (dto.invoiceFileId) {
+            const file = await this.prisma.fileAttachment.findFirst({
+                where: {
+                    id: dto.invoiceFileId,
+                    organizationId: currentUser.organizationId,
+                    deletedAt: null,
+                },
+            });
+
+            if (!file) {
+                throw new NotFoundException('Invoice file not found.');
+            }
+
+            if (file.purpose !== 'SERVICE_INVOICE') {
+                throw new BadRequestException(
+                    'Invoice file must be uploaded with purpose SERVICE_INVOICE.',
+                );
+            }
+        }
+
         const updatedServiceEvent = await this.prisma.serviceEvent.update({
             where: {
                 id: serviceEvent.id,
@@ -314,6 +427,7 @@ export class ServiceEventsService {
             },
             include: {
                 vehicle: true,
+                invoiceFile: true,
                 createdByMembership: {
                     include: {
                         user: true,
@@ -335,6 +449,7 @@ export class ServiceEventsService {
             },
             include: {
                 vehicle: true,
+                invoiceFile: true,
                 createdByMembership: {
                     include: {
                         user: true,
@@ -373,6 +488,7 @@ export class ServiceEventsService {
             },
             include: {
                 vehicle: true,
+                invoiceFile: true,
                 createdByMembership: {
                     include: {
                         user: true,
@@ -382,5 +498,24 @@ export class ServiceEventsService {
         });
 
         return this.toServiceEventResponse(cancelledServiceEvent);
+    }
+
+    private getOrderBy(sort?: string) {
+        switch (sort) {
+            case 'startAt':
+                return {startAt: 'asc' as const};
+            case '-startAt':
+                return {startAt: 'desc' as const};
+            case 'endAt':
+                return {endAt: 'asc' as const};
+            case '-endAt':
+                return {endAt: 'desc' as const};
+            case 'createdAt':
+                return {createdAt: 'asc' as const};
+            case '-createdAt':
+                return {createdAt: 'desc' as const};
+            default:
+                return {startAt: 'desc' as const};
+        }
     }
 }

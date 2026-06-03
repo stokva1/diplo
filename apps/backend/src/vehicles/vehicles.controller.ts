@@ -15,6 +15,7 @@ import {UpdateVehicleDto} from './dto/update-vehicle.dto';
 import {AvailableVehiclesQueryDto} from './dto/available-vehicles-query.dto';
 import {VehiclesService} from './vehicles.service';
 import {FindVehiclesQueryDto} from "./dto/find-vehicles-query.dto";
+import {CreateReservationIssueDto} from "../vehicle-issues/dto/create-reservation-issue.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -60,6 +61,19 @@ export class VehiclesController {
         return this.vehiclesService.findOne(request.user, vehicleId);
     }
 
+    @Post(':vehicleId/issues')
+    createIssue(
+        @Req() request: AuthenticatedRequest,
+        @Param('vehicleId') vehicleId: string,
+        @Body() dto: CreateReservationIssueDto,
+    ) {
+        return this.vehiclesService.createIssue(
+            request.user,
+            vehicleId,
+            dto,
+        );
+    }
+
     @Patch(':vehicleId')
     update(
         @Req() request: AuthenticatedRequest,
@@ -76,4 +90,5 @@ export class VehiclesController {
     ) {
         return this.vehiclesService.archive(request.user, vehicleId);
     }
+
 }

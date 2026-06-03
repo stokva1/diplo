@@ -1,11 +1,28 @@
 import {
+    ArrayUnique,
+    IsArray,
     IsBoolean,
     IsInt,
-    IsNumber,
     IsOptional,
     IsString,
+    IsUUID,
     Min,
+    MinLength,
+    ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class CreateTripLogIssueDto {
+    @IsString()
+    @MinLength(1)
+    description: string;
+
+    @IsArray()
+    @ArrayUnique()
+    @IsUUID('4', { each: true })
+    @IsOptional()
+    photoFileIds?: string[];
+}
 
 export class CreateTripLogDto {
     @IsInt()
@@ -19,7 +36,7 @@ export class CreateTripLogDto {
     @IsBoolean()
     refueled: boolean;
 
-    @IsNumber()
+    @IsInt()
     @Min(0)
     @IsOptional()
     refuelingCost?: number;
@@ -31,4 +48,9 @@ export class CreateTripLogDto {
     @IsString()
     @IsOptional()
     note?: string;
+
+    @ValidateNested()
+    @Type(() => CreateTripLogIssueDto)
+    @IsOptional()
+    issue?: CreateTripLogIssueDto;
 }

@@ -38,7 +38,7 @@ export class CreateVehicleDto {
 
     @IsString()
     @IsOptional()
-    managerMembershipId?: string;
+    managerMemberId?: string;
 
     @IsString()
     @IsOptional()

@@ -1,5 +1,8 @@
 import {BadRequestException, ForbiddenException, Injectable, NotFoundException} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import {FindVehicleIssuesQueryDto} from "./dto/find-vehicle-issues-query.dto";
+import {CreateReservationIssueDto} from "./dto/create-reservation-issue.dto";
+import {buildPaginationMeta, getPagination} from "../common/pagination";
 
 type CurrentUser = {
     userId: string;
@@ -15,7 +18,7 @@ export class VehicleIssuesService {
     async createForReservation(
         currentUser: CurrentUser,
         reservationId: string,
-        description: string,
+        dto: CreateReservationIssueDto,
     ) {
         const reservation = await this.prisma.reservation.findFirst({
             where: {
@@ -42,22 +45,24 @@ export class VehicleIssuesService {
             throw new ForbiddenException('You cannot report issue for this reservation.');
         }
 
+        await this.validateIssuePhotoFiles(currentUser, dto.photoFileIds);
+
         const issue = await this.prisma.vehicleIssue.create({
             data: {
                 vehicleId: reservation.vehicleId,
                 reservationId: reservation.id,
                 reportedByMembershipId: currentUser.membershipId,
-                description,
+                description: dto.description,
                 status: 'OPEN',
+                vehicleIssueAttachments: dto.photoFileIds?.length
+                    ? {
+                        create: dto.photoFileIds.map((fileId) => ({
+                            fileAttachmentId: fileId,
+                        })),
+                    }
+                    : undefined,
             },
-            include: {
-                vehicle: true,
-                reportedByMembership: {
-                    include: {
-                        user: true,
-                    },
-                },
-            },
+            include: this.issueInclude(),
         });
 
         return this.toIssueResponse(issue);
@@ -72,6 +77,15 @@ export class VehicleIssuesService {
                 licensePlate: issue.vehicle.licensePlate,
             },
             reservationId: issue.reservationId,
+            reservation: issue.reservation
+                ? {
+                    id: issue.reservation.id,
+                    startAt: issue.reservation.startAt,
+                    endAt: issue.reservation.endAt,
+                    origin: issue.reservation.origin,
+                    destination: issue.reservation.destination,
+                }
+                : null,
             reportedBy: {
                 id: issue.reportedByMembership.id,
                 name: issue.reportedByMembership.user.name,
@@ -79,6 +93,19 @@ export class VehicleIssuesService {
             },
             description: issue.description,
             status: issue.status,
+            photos: issue.vehicleIssueAttachments
+                ? issue.vehicleIssueAttachments.map((attachment) => ({
+                    id: attachment.fileAttachment.id,
+                    fileName: attachment.fileAttachment.fileName,
+                }))
+                : [],
+            resolvedBy: issue.resolvedByMembership
+                ? {
+                    id: issue.resolvedByMembership.id,
+                    name: issue.resolvedByMembership.user.name,
+                    email: issue.resolvedByMembership.user.email,
+                }
+                : null,
             resolvedByMembershipId: issue.resolvedByMembershipId,
             resolvedAt: issue.resolvedAt,
             createdAt: issue.createdAt,
@@ -86,7 +113,9 @@ export class VehicleIssuesService {
         };
     }
 
-    async findAll(currentUser: CurrentUser, scope = 'mine') {
+    async findAll(currentUser: CurrentUser, query: FindVehicleIssuesQueryDto) {
+        const scope = query.scope ?? 'mine';
+
         if (!['mine', 'managed', 'all'].includes(scope)) {
             throw new BadRequestException('Invalid issue scope.');
         }
@@ -95,7 +124,13 @@ export class VehicleIssuesService {
             throw new ForbiddenException('Only administrator can view all issues.');
         }
 
-        const where =
+        if (query.memberId && currentUser.role !== 'ADMIN') {
+            throw new ForbiddenException(
+                'Only administrator can filter issues by member.',
+            );
+        }
+
+        const where: any =
             scope === 'all'
                 ? {
                     vehicle: {
@@ -116,23 +151,52 @@ export class VehicleIssuesService {
                         reportedByMembershipId: currentUser.membershipId,
                     };
 
-        const issues = await this.prisma.vehicleIssue.findMany({
-            where,
-            include: {
-                vehicle: true,
-                reportedByMembership: {
-                    include: {
-                        user: true,
-                    },
-                },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
+        if (query.status) {
+            where.status = query.status;
+        }
+
+        if (query.vehicleId) {
+            where.vehicleId = query.vehicleId;
+        }
+
+        if (query.memberId) {
+            where.reportedByMembershipId = query.memberId;
+        }
+
+        if (query.from || query.to) {
+            where.createdAt = {};
+
+            if (query.from) {
+                where.createdAt.gte = new Date(query.from);
+            }
+
+            if (query.to) {
+                where.createdAt.lte = new Date(query.to);
+            }
+        }
+
+        const { page, limit, skip, take } = getPagination(query);
+
+        const [issues, total] = await this.prisma.$transaction([
+            this.prisma.vehicleIssue.findMany({
+                where,
+                include: this.issueInclude(),
+                orderBy: this.getOrderBy(query.sort),
+                skip,
+                take,
+            }),
+            this.prisma.vehicleIssue.count({
+                where,
+            }),
+        ]);
 
         return {
             data: issues.map((issue) => this.toIssueResponse(issue)),
+            pagination: buildPaginationMeta({
+                page,
+                limit,
+                total,
+            }),
         };
     }
 
@@ -144,14 +208,7 @@ export class VehicleIssuesService {
                     organizationId: currentUser.organizationId,
                 },
             },
-            include: {
-                vehicle: true,
-                reportedByMembership: {
-                    include: {
-                        user: true,
-                    },
-                },
-            },
+            include: this.issueInclude(),
         });
 
         if (!issue) {
@@ -179,14 +236,7 @@ export class VehicleIssuesService {
                     organizationId: currentUser.organizationId,
                 },
             },
-            include: {
-                vehicle: true,
-                reportedByMembership: {
-                    include: {
-                        user: true,
-                    },
-                },
-            },
+            include: this.issueInclude(),
         });
 
         if (!issue) {
@@ -215,16 +265,79 @@ export class VehicleIssuesService {
                 resolvedByMembershipId: currentUser.membershipId,
                 updatedAt: new Date(),
             },
-            include: {
-                vehicle: true,
-                reportedByMembership: {
-                    include: {
-                        user: true,
-                    },
-                },
-            },
+            include: this.issueInclude(),
         });
 
         return this.toIssueResponse(resolvedIssue);
+    }
+
+    private async validateIssuePhotoFiles(
+        currentUser: CurrentUser,
+        photoFileIds?: string[],
+    ) {
+        if (!photoFileIds || photoFileIds.length === 0) {
+            return;
+        }
+
+        const files = await this.prisma.fileAttachment.findMany({
+            where: {
+                id: {
+                    in: photoFileIds,
+                },
+                organizationId: currentUser.organizationId,
+                deletedAt: null,
+            },
+        });
+
+        if (files.length !== photoFileIds.length) {
+            throw new NotFoundException('One or more issue photo files were not found.');
+        }
+
+        const invalidPurposeFile = files.find(
+            (file) => file.purpose !== 'ISSUE_PHOTO',
+        );
+
+        if (invalidPurposeFile) {
+            throw new BadRequestException(
+                'Issue photos must be uploaded with purpose ISSUE_PHOTO.',
+            );
+        }
+    }
+
+    private issueInclude() {
+        return {
+            vehicle: true,
+            reportedByMembership: {
+                include: {
+                    user: true,
+                },
+            },
+            resolvedByMembership: {
+                include: {
+                    user: true,
+                },
+            },
+            reservation: true,
+            vehicleIssueAttachments: {
+                include: {
+                    fileAttachment: true,
+                },
+            },
+        };
+    }
+
+    private getOrderBy(sort?: string) {
+        switch (sort) {
+            case 'createdAt':
+                return { createdAt: 'asc' as const };
+            case '-createdAt':
+                return { createdAt: 'desc' as const };
+            case 'resolvedAt':
+                return { resolvedAt: 'asc' as const };
+            case '-resolvedAt':
+                return { resolvedAt: 'desc' as const };
+            default:
+                return { createdAt: 'desc' as const };
+        }
     }
 }

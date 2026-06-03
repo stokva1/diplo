@@ -1,6 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '../../database/prisma.service';
 
 type JwtPayload = {
     sub: string;
@@ -11,29 +13,48 @@ type JwtPayload = {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor() {
-        const secret = process.env.JWT_ACCESS_SECRET;
+    constructor(
+        private readonly prisma: PrismaService,
+        configService: ConfigService,
+    ) {
+        const secret = configService.get<string>('JWT_ACCESS_SECRET');
 
         if (!secret) {
-            throw new Error('JWT_ACCESS_SECRET is not set');
+            throw new Error('JWT_ACCESS_SECRET is not configured.');
         }
 
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            ignoreExpiration: false,
             secretOrKey: secret,
         });
     }
 
-    validate(payload: JwtPayload) {
-        if (!payload.sub || !payload.membershipId || !payload.organizationId) {
-            throw new UnauthorizedException();
+    async validate(payload: JwtPayload) {
+        const membership = await this.prisma.membership.findFirst({
+            where: {
+                id: payload.membershipId,
+                userId: payload.sub,
+                organizationId: payload.organizationId,
+                status: 'ACTIVE',
+            },
+            select: {
+                id: true,
+                role: true,
+                organizationId: true,
+                userId: true,
+            },
+        });
+
+        if (!membership) {
+            throw new UnauthorizedException('Membership is not active.');
         }
 
         return {
-            userId: payload.sub,
-            membershipId: payload.membershipId,
-            organizationId: payload.organizationId,
-            role: payload.role,
+            userId: membership.userId,
+            membershipId: membership.id,
+            organizationId: membership.organizationId,
+            role: membership.role,
         };
     }
 }

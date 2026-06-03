@@ -1,7 +1,8 @@
-import {Controller, Get, Param, Post, Query, Req, UseGuards} from '@nestjs/common';
+import {Body, Controller, Get, Param, Post, Query, Req, UseGuards} from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VehicleIssuesService } from './vehicle-issues.service';
+import {FindVehicleIssuesQueryDto} from "./dto/find-vehicle-issues-query.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -20,9 +21,9 @@ export class VehicleIssuesController {
     @Get()
     findAll(
         @Req() request: AuthenticatedRequest,
-        @Query('scope') scope?: string,
+        @Query() query: FindVehicleIssuesQueryDto,
     ) {
-        return this.vehicleIssuesService.findAll(request.user, scope);
+        return this.vehicleIssuesService.findAll(request.user, query);
     }
 
     @Post(':issueId/resolve')
@@ -40,5 +41,4 @@ export class VehicleIssuesController {
     ) {
         return this.vehicleIssuesService.findOne(request.user, issueId);
     }
-
 }

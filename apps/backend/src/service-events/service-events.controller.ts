@@ -4,6 +4,7 @@ import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
 import {CreateServiceEventDto} from './dto/create-service-event.dto';
 import {ServiceEventsService} from './service-events.service';
 import {UpdateServiceEventDto} from "./dto/update-service-event.dto";
+import {FindServiceEventsQueryDto} from "./dto/find-service-events-query.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -32,17 +33,18 @@ export class ServiceEventsController {
     @Get('service-events')
     findAll(
         @Req() request: AuthenticatedRequest,
-        @Query('scope') scope?: string,
+        @Query() query: FindServiceEventsQueryDto,
     ) {
-        return this.serviceEventsService.findAll(request.user, scope);
+        return this.serviceEventsService.findAll(request.user, query);
     }
 
     @Get('vehicles/:vehicleId/service-events')
     findByVehicle(
         @Req() request: AuthenticatedRequest,
         @Param('vehicleId') vehicleId: string,
+        @Query() query: FindServiceEventsQueryDto
     ) {
-        return this.serviceEventsService.findByVehicle(request.user, vehicleId);
+        return this.serviceEventsService.findByVehicle(request.user, vehicleId, query);
     }
 
     @Post('service-events/:serviceEventId/cancel')

@@ -6,6 +6,8 @@ import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { CreateTripLogDto } from '../trip-logs/dto/create-trip-log.dto';
 import { CreateReservationIssueDto } from '../vehicle-issues/dto/create-reservation-issue.dto';
 import { ReservationsService } from './reservations.service';
+import {FindReservationsQueryDto} from "./dto/find-reservations-query.dto";
+import {UpdateTripLogDto} from "../trip-logs/dto/update-trip-log.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -32,9 +34,9 @@ export class ReservationsController {
     @Get()
     findAll(
         @Req() request: AuthenticatedRequest,
-        @Query('scope') scope?: string,
+        @Query() query: FindReservationsQueryDto,
     ) {
-        return this.reservationsService.findAll(request.user, scope);
+        return this.reservationsService.findAll(request.user, query);
     }
 
     @Get(':reservationId/trip-log')
@@ -52,6 +54,19 @@ export class ReservationsController {
         @Body() dto: CreateTripLogDto,
     ) {
         return this.reservationsService.createTripLog(
+            request.user,
+            reservationId,
+            dto,
+        );
+    }
+
+    @Patch(':reservationId/trip-log')
+    updateTripLog(
+        @Req() request: AuthenticatedRequest,
+        @Param('reservationId') reservationId: string,
+        @Body() dto: UpdateTripLogDto,
+    ) {
+        return this.reservationsService.updateTripLog(
             request.user,
             reservationId,
             dto,

@@ -3,9 +3,8 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
-import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import {UpdateOrganizationSettingsDto} from "./dto/update-organization-settings.dto";
+import {PrismaService} from '../database/prisma.service';
+import {UpdateOrganizationDto} from './dto/update-organization.dto';
 
 type CurrentUser = {
     userId: string;
@@ -16,7 +15,8 @@ type CurrentUser = {
 
 @Injectable()
 export class OrganizationService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService) {
+    }
 
     async findOne(currentUser: CurrentUser) {
         const organization = await this.prisma.organization.findUnique({
@@ -60,55 +60,6 @@ export class OrganizationService {
             contactEmail: organization.contactEmail,
             createdAt: organization.createdAt,
             updatedAt: organization.updatedAt,
-        };
-    }
-
-    async findSettings(currentUser: CurrentUser) {
-        const settings = await this.prisma.organizationSettings.findUnique({
-            where: {
-                organizationId: currentUser.organizationId,
-            },
-        });
-
-        if (!settings) {
-            throw new NotFoundException('Organization settings not found.');
-        }
-
-        return this.toOrganizationSettingsResponse(settings);
-    }
-
-    async updateSettings(
-        currentUser: CurrentUser,
-        dto: UpdateOrganizationSettingsDto,
-    ) {
-        if (currentUser.role !== 'ADMIN') {
-            throw new ForbiddenException(
-                'Only administrator can update organization settings.',
-            );
-        }
-
-        const settings = await this.prisma.organizationSettings.update({
-            where: {
-                organizationId: currentUser.organizationId,
-            },
-            data: {
-                tripLogRetentionMonths: dto.tripLogRetentionMonths,
-                issuePhotoRetentionMonths: dto.issuePhotoRetentionMonths,
-                updatedAt: new Date(),
-            },
-        });
-
-        return this.toOrganizationSettingsResponse(settings);
-    }
-
-    private toOrganizationSettingsResponse(settings: any) {
-        return {
-            id: settings.id,
-            organizationId: settings.organizationId,
-            tripLogRetentionMonths: settings.tripLogRetentionMonths,
-            issuePhotoRetentionMonths: settings.issuePhotoRetentionMonths,
-            createdAt: settings.createdAt,
-            updatedAt: settings.updatedAt,
         };
     }
 }

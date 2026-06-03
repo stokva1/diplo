@@ -44,7 +44,7 @@ export class UpdateVehicleDto {
 
     @IsString()
     @IsOptional()
-    managerMembershipId?: string | null;
+    managerMemberId?: string | null;
 
     @IsString()
     @IsOptional()

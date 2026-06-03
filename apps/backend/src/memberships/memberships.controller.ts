@@ -1,8 +1,9 @@
-import {Body, Controller, Get, Param, Patch, Post, Req, UseGuards} from '@nestjs/common';
+import {Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards} from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MembershipsService } from './memberships.service';
 import {UpdateMembershipDto} from "./dto/update-membership.dto";
+import {FindMembersQueryDto} from "./dto/find-members-query.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -13,38 +14,42 @@ type AuthenticatedRequest = Request & {
     };
 };
 
+
 @UseGuards(JwtAuthGuard)
 @Controller('members')
 export class MembershipsController {
     constructor(private readonly membershipsService: MembershipsService) {}
 
     @Get()
-    findAll(@Req() request: AuthenticatedRequest) {
-        return this.membershipsService.findAll(request.user);
+    findAll(
+        @Req() request: AuthenticatedRequest,
+        @Query() query: FindMembersQueryDto,
+    ) {
+        return this.membershipsService.findAll(request.user, query);
     }
 
     @Get(':memberId')
     findOne(
         @Req() request: AuthenticatedRequest,
-        @Param('memberId') membershipId: string,
+        @Param('memberId') memberId: string,
     ) {
-        return this.membershipsService.findOne(request.user, membershipId);
+        return this.membershipsService.findOne(request.user, memberId);
     }
 
     @Patch(':memberId')
     update(
         @Req() request: AuthenticatedRequest,
-        @Param('membershipId') membershipId: string,
+        @Param('memberId') memberId: string,
         @Body() dto: UpdateMembershipDto,
     ) {
-        return this.membershipsService.update(request.user, membershipId, dto);
+        return this.membershipsService.update(request.user, memberId, dto);
     }
 
-    @Post(':memberId/disable')
-    disable(
+    @Post(':memberId/deactivate')
+    deactivate(
         @Req() request: AuthenticatedRequest,
-        @Param('membershipId') membershipId: string,
+        @Param('memberId') memberId: string,
     ) {
-        return this.membershipsService.disable(request.user, membershipId);
+        return this.membershipsService.deactivate(request.user, memberId);
     }
 }

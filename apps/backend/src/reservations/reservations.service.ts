@@ -12,6 +12,10 @@ import {CreateReservationDto} from './dto/create-reservation.dto';
 import {UpdateReservationDto} from './dto/update-reservation.dto';
 import {CreateTripLogDto} from '../trip-logs/dto/create-trip-log.dto';
 import {CreateReservationIssueDto} from '../vehicle-issues/dto/create-reservation-issue.dto';
+import {FindReservationsQueryDto} from "./dto/find-reservations-query.dto";
+import {UpdateTripLogDto} from "../trip-logs/dto/update-trip-log.dto";
+import {TripLogsService} from "../trip-logs/trip-logs.service";
+import {buildPaginationMeta, getPagination} from "../common/pagination";
 
 type CurrentUser = {
     userId: string;
@@ -26,8 +30,8 @@ export class ReservationsService {
         private readonly prisma: PrismaService,
         private readonly availabilityService: AvailabilityService,
         private readonly vehicleIssuesService: VehicleIssuesService,
-    ) {
-    }
+        private readonly tripLogsService: TripLogsService,
+    ) {}
 
     async create(currentUser: CurrentUser, dto: CreateReservationDto) {
         const startAt = new Date(dto.startAt);
@@ -92,10 +96,71 @@ export class ReservationsService {
             cancelledByMembershipId: reservation.cancelledByMembershipId,
             createdAt: reservation.createdAt,
             updatedAt: reservation.updatedAt,
+            hasTripLog: reservation.tripLog !== undefined
+                ? reservation.tripLog !== null
+                : undefined,
+
+            tripLog: reservation.tripLog !== undefined
+                ? reservation.tripLog
+                    ? {
+                        id: reservation.tripLog.id,
+                        reservationId: reservation.id,
+                        odometerStartKm: reservation.tripLog.odometerStartKm,
+                        odometerEndKm: reservation.tripLog.odometerEndKm,
+                        distanceKm: reservation.tripLog.distanceKm,
+                        refueled: reservation.tripLog.refueled,
+                        refuelingCost: reservation.tripLog.refuelingCost,
+                        refuelingReceiptFile: reservation.tripLog.refuelingReceiptFile
+                            ? {
+                                id: reservation.tripLog.refuelingReceiptFile.id,
+                                fileName: reservation.tripLog.refuelingReceiptFile.fileName,
+                            }
+                            : null,
+                        note: reservation.tripLog.note,
+                        completedByMembershipId: reservation.tripLog.completedByMembershipId,
+                        completedAt: reservation.tripLog.completedAt,
+                        createdAt: reservation.tripLog.createdAt,
+                        updatedAt: reservation.tripLog.updatedAt,
+                    }
+                    : null
+                : undefined,
+
+            issues: reservation.vehicleIssues
+                ? reservation.vehicleIssues.map((issue) => ({
+                    id: issue.id,
+                    vehicleId: issue.vehicleId,
+                    reservationId: issue.reservationId,
+                    reportedBy: {
+                        id: issue.reportedByMembership.id,
+                        name: issue.reportedByMembership.user.name,
+                        email: issue.reportedByMembership.user.email,
+                    },
+                    description: issue.description,
+                    status: issue.status,
+                    photos: issue.vehicleIssueAttachments
+                        ? issue.vehicleIssueAttachments.map((attachment) => ({
+                            id: attachment.fileAttachment.id,
+                            fileName: attachment.fileAttachment.fileName,
+                        }))
+                        : [],
+                    resolvedBy: issue.resolvedByMembership
+                        ? {
+                            id: issue.resolvedByMembership.id,
+                            name: issue.resolvedByMembership.user.name,
+                            email: issue.resolvedByMembership.user.email,
+                        }
+                        : null,
+                    resolvedAt: issue.resolvedAt,
+                    createdAt: issue.createdAt,
+                    updatedAt: issue.updatedAt,
+                }))
+                : undefined,
         };
     }
 
-    async findAll(currentUser: CurrentUser, scope = 'mine') {
+    async findAll(currentUser: CurrentUser, query: FindReservationsQueryDto) {
+        const scope = query.scope ?? 'mine';
+
         if (!['mine', 'managed', 'all'].includes(scope)) {
             throw new BadRequestException('Invalid reservation scope.');
         }
@@ -104,7 +169,23 @@ export class ReservationsService {
             throw new ForbiddenException('Only administrator can view all reservations.');
         }
 
-        const where =
+        if (query.memberId && currentUser.role !== 'ADMIN') {
+            throw new ForbiddenException('Only administrator can filter by member.');
+        }
+
+        const now = new Date();
+
+        if (
+            query.missingTripLog === 'true' &&
+            query.status &&
+            query.status !== 'FINISHED'
+        ) {
+            throw new BadRequestException(
+                'missingTripLog=true can be used only with status=FINISHED.',
+            );
+        }
+
+        const where: any =
             scope === 'all'
                 ? {
                     vehicle: {
@@ -125,25 +206,88 @@ export class ReservationsService {
                         membershipId: currentUser.membershipId,
                     };
 
-        const reservations = await this.prisma.reservation.findMany({
-            where,
-            include: {
-                vehicle: true,
-                membership: {
-                    include: {
-                        user: true,
+        if (query.vehicleId) {
+            where.vehicleId = query.vehicleId;
+        }
+
+        if (query.memberId) {
+            where.membershipId = query.memberId;
+        }
+
+        if (query.from || query.to) {
+            where.startAt = {};
+
+            if (query.from) {
+                where.startAt.gte = new Date(query.from);
+            }
+
+            if (query.to) {
+                where.startAt.lte = new Date(query.to);
+            }
+        }
+
+        if (query.status === 'CANCELLED') {
+            where.status = 'CANCELLED';
+        }
+
+        if (query.status === 'ACTIVE') {
+            where.status = 'ACTIVE';
+            where.endAt = {
+                gte: now,
+            };
+        }
+
+        if (query.status === 'FINISHED') {
+            where.status = 'ACTIVE';
+            where.endAt = {
+                lt: now,
+            };
+        }
+
+        if (query.missingTripLog === 'true') {
+            where.status = 'ACTIVE';
+            where.endAt = {
+                lt: now,
+            };
+            where.tripLog = null;
+        }
+
+        const { page, limit, skip, take } = getPagination(query);
+
+        const [reservations, total] = await this.prisma.$transaction([
+            this.prisma.reservation.findMany({
+                where,
+                include: {
+                    vehicle: true,
+                    membership: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                    tripLog: {
+                        include: {
+                            refuelingReceiptFile: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                startAt: 'desc',
-            },
-        });
+                orderBy: this.getOrderBy(query.sort),
+                skip,
+                take,
+            }),
+            this.prisma.reservation.count({
+                where,
+            }),
+        ]);
 
         return {
             data: reservations.map((reservation) =>
                 this.toReservationResponse(reservation),
             ),
+            pagination: buildPaginationMeta({
+                page,
+                limit,
+                total,
+            }),
         };
     }
 
@@ -160,6 +304,33 @@ export class ReservationsService {
                 membership: {
                     include: {
                         user: true,
+                    },
+                },
+                tripLog: {
+                    include: {
+                        refuelingReceiptFile: true,
+                    },
+                },
+                vehicleIssues: {
+                    include: {
+                        reportedByMembership: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                        resolvedByMembership: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                        vehicleIssueAttachments: {
+                            include: {
+                                fileAttachment: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
                     },
                 },
             },
@@ -227,7 +398,7 @@ export class ReservationsService {
             throw new ForbiddenException('You cannot cancel this reservation.');
         }
 
-        if (!isAdmin && reservation.startAt <= new Date()) {
+        if (reservation.startAt <= new Date()) {
             throw new ConflictException('Reservation has already started.');
         }
 
@@ -362,7 +533,11 @@ export class ReservationsService {
                         user: true,
                     },
                 },
-                tripLog: true,
+                tripLog: {
+                    include: {
+                        refuelingReceiptFile: true,
+                    },
+                },
             },
         });
 
@@ -401,7 +576,12 @@ export class ReservationsService {
             distanceKm: reservation.tripLog.distanceKm,
             refueled: reservation.tripLog.refueled,
             refuelingCost: reservation.tripLog.refuelingCost,
-            refuelingReceiptFileId: reservation.tripLog.refuelingReceiptFileId,
+            refuelingReceiptFile: reservation.tripLog.refuelingReceiptFile
+                ? {
+                    id: reservation.tripLog.refuelingReceiptFile.id,
+                    fileName: reservation.tripLog.refuelingReceiptFile.fileName,
+                }
+                : null,
             note: reservation.tripLog.note,
             completedByMembershipId: reservation.tripLog.completedByMembershipId,
             completedAt: reservation.tripLog.completedAt,
@@ -462,31 +642,130 @@ export class ReservationsService {
             );
         }
 
-        const tripLog = await this.prisma.tripLog.create({
-            data: {
-                reservationId: reservation.id,
-                odometerStartKm: dto.odometerStartKm,
-                odometerEndKm: dto.odometerEndKm,
-                refueled: dto.refueled,
-                refuelingCost: dto.refuelingCost,
-                refuelingReceiptFileId: dto.refuelingReceiptFileId,
-                note: dto.note,
-                completedByMembershipId: currentUser.membershipId,
-            },
-        });
-
-        const updatedVehicle =
-            dto.odometerEndKm > reservation.vehicle.currentOdometerKm
-                ? await this.prisma.vehicle.update({
-                    where: {
-                        id: reservation.vehicle.id,
+        if (dto.issue?.photoFileIds?.length) {
+            const files = await this.prisma.fileAttachment.findMany({
+                where: {
+                    id: {
+                        in: dto.issue.photoFileIds,
                     },
+                    organizationId: currentUser.organizationId,
+                    deletedAt: null,
+                },
+            });
+
+            if (files.length !== dto.issue.photoFileIds.length) {
+                throw new NotFoundException('One or more issue photo files were not found.');
+            }
+
+            const invalidPurposeFile = files.find(
+                (file) => file.purpose !== 'ISSUE_PHOTO',
+            );
+
+            if (invalidPurposeFile) {
+                throw new BadRequestException(
+                    'Issue photos must be uploaded with purpose ISSUE_PHOTO.',
+                );
+            }
+        }
+
+        if (dto.refuelingReceiptFileId) {
+            const file = await this.prisma.fileAttachment.findFirst({
+                where: {
+                    id: dto.refuelingReceiptFileId,
+                    organizationId: currentUser.organizationId,
+                    deletedAt: null,
+                },
+            });
+
+            if (!file) {
+                throw new NotFoundException('Refueling receipt file not found.');
+            }
+
+            if (file.purpose !== 'FUEL_RECEIPT') {
+                throw new BadRequestException(
+                    'Refueling receipt file must be uploaded with purpose FUEL_RECEIPT.',
+                );
+            }
+        }
+
+        const result = await this.prisma.$transaction(async (tx) => {
+            const tripLog = await tx.tripLog.create({
+                data: {
+                    reservationId: reservation.id,
+                    odometerStartKm: dto.odometerStartKm,
+                    odometerEndKm: dto.odometerEndKm,
+                    refueled: dto.refueled,
+                    refuelingCost: dto.refuelingCost,
+                    refuelingReceiptFileId: dto.refuelingReceiptFileId,
+                    note: dto.note,
+                    completedByMembershipId: currentUser.membershipId,
+                },
+                include: {
+                    refuelingReceiptFile: true,
+                },
+            });
+
+            const createdIssue = dto.issue
+                ? await tx.vehicleIssue.create({
                     data: {
-                        currentOdometerKm: dto.odometerEndKm,
-                        updatedAt: new Date(),
+                        vehicleId: reservation.vehicleId,
+                        reservationId: reservation.id,
+                        reportedByMembershipId: currentUser.membershipId,
+                        description: dto.issue.description,
+                        status: 'OPEN',
+                        vehicleIssueAttachments: dto.issue.photoFileIds?.length
+                            ? {
+                                create: dto.issue.photoFileIds.map((fileId) => ({
+                                    fileAttachmentId: fileId,
+                                })),
+                            }
+                            : undefined,
+                    },
+                    include: {
+                        vehicle: true,
+                        reservation: true,
+                        reportedByMembership: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                        resolvedByMembership: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                        vehicleIssueAttachments: {
+                            include: {
+                                fileAttachment: true,
+                            },
+                        },
                     },
                 })
-                : reservation.vehicle;
+                : null;
+
+            const updatedVehicle =
+                dto.odometerEndKm > reservation.vehicle.currentOdometerKm
+                    ? await tx.vehicle.update({
+                        where: {
+                            id: reservation.vehicle.id,
+                        },
+                        data: {
+                            currentOdometerKm: dto.odometerEndKm,
+                            updatedAt: new Date(),
+                        },
+                    })
+                    : reservation.vehicle;
+
+            return {
+                tripLog,
+                updatedVehicle,
+                createdIssue,
+            };
+        });
+
+        const tripLog = result.tripLog;
+        const updatedVehicle = result.updatedVehicle;
+        const createdIssue = result.createdIssue;
 
         return {
             id: tripLog.id,
@@ -507,13 +786,50 @@ export class ReservationsService {
             distanceKm: tripLog.distanceKm,
             refueled: tripLog.refueled,
             refuelingCost: tripLog.refuelingCost,
-            refuelingReceiptFileId: tripLog.refuelingReceiptFileId,
+            refuelingReceiptFile: tripLog.refuelingReceiptFile
+                ? {
+                    id: tripLog.refuelingReceiptFile.id,
+                    fileName: tripLog.refuelingReceiptFile.fileName,
+                }
+                : null,
             note: tripLog.note,
             completedByMembershipId: tripLog.completedByMembershipId,
             completedAt: tripLog.completedAt,
             createdAt: tripLog.createdAt,
             updatedAt: tripLog.updatedAt,
+            issue: createdIssue
+                ? {
+                    id: createdIssue.id,
+                    vehicle: {
+                        id: createdIssue.vehicle.id,
+                        name: createdIssue.vehicle.name,
+                        licensePlate: createdIssue.vehicle.licensePlate,
+                    },
+                    reservationId: createdIssue.reservationId,
+                    description: createdIssue.description,
+                    status: createdIssue.status,
+                    photos: createdIssue.vehicleIssueAttachments
+                        ? createdIssue.vehicleIssueAttachments.map((attachment) => ({
+                            id: attachment.fileAttachment.id,
+                            fileName: attachment.fileAttachment.fileName,
+                        }))
+                        : [],
+                    createdAt: createdIssue.createdAt,
+                }
+                : null,
         };
+    }
+
+    updateTripLog(
+        currentUser: CurrentUser,
+        reservationId: string,
+        dto: UpdateTripLogDto,
+    ) {
+        return this.tripLogsService.updateForReservation(
+            currentUser,
+            reservationId,
+            dto,
+        );
     }
 
     async createIssue(
@@ -524,7 +840,27 @@ export class ReservationsService {
         return this.vehicleIssuesService.createForReservation(
             currentUser,
             reservationId,
-            dto.description,
+            dto,
         );
     }
+
+    private getOrderBy(sort?: string) {
+        switch (sort) {
+            case 'startAt':
+                return { startAt: 'asc' as const };
+            case '-startAt':
+                return { startAt: 'desc' as const };
+            case 'endAt':
+                return { endAt: 'asc' as const };
+            case '-endAt':
+                return { endAt: 'desc' as const };
+            case 'createdAt':
+                return { createdAt: 'asc' as const };
+            case '-createdAt':
+                return { createdAt: 'desc' as const };
+            default:
+                return { startAt: 'desc' as const };
+        }
+    }
+
 }

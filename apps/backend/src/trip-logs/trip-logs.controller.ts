@@ -1,7 +1,9 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import {Controller, Get, Query, Req, UseGuards} from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TripLogsService } from './trip-logs.service';
+import {FindMissingTripLogsQueryDto} from "./dto/find-missing-trip-logs-query.dto";
+import {FindTripLogsQueryDto} from "./dto/find-trip-logs-query.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -17,8 +19,19 @@ type AuthenticatedRequest = Request & {
 export class TripLogsController {
     constructor(private readonly tripLogsService: TripLogsService) {}
 
+    @Get()
+    findAll(
+        @Req() request: AuthenticatedRequest,
+        @Query() query: FindTripLogsQueryDto,
+    ) {
+        return this.tripLogsService.findAll(request.user, query);
+    }
+
     @Get('missing')
-    findMissing(@Req() request: AuthenticatedRequest) {
-        return this.tripLogsService.findMissing(request.user);
+    findMissing(
+        @Req() request: AuthenticatedRequest,
+        @Query() query: FindMissingTripLogsQueryDto,
+    ) {
+        return this.tripLogsService.findMissing(request.user, query);
     }
 }

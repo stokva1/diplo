@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     ConflictException,
     Injectable,
     InternalServerErrorException,
@@ -10,7 +11,9 @@ import {PrismaService} from '../database/prisma.service';
 import {RegisterOrganizationDto} from './dto/register-organization.dto';
 import {LoginDto} from './dto/login.dto';
 import {JwtService} from '@nestjs/jwt';
-import {AcceptInvitationDto} from "./dto/accept-invitation.dto";
+import {PasswordResetConfirmDto} from "./dto/password-reset-confirm.dto";
+import {PasswordResetRequestDto} from "./dto/password-reset-request.dto";
+import {RefreshTokenDto} from "./dto/refresh-token.dto";
 
 type AccessTokenPayload = {
     sub: string;
@@ -19,12 +22,39 @@ type AccessTokenPayload = {
     role: string;
 };
 
+type RefreshTokenPayload = {
+    sub: string;
+    membershipId: string;
+    organizationId: string;
+    role: string;
+};
+
+function hashToken(token: string) {
+    return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 @Injectable()
 export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
     ) {
+    }
+
+    private async getManagedVehicleIds(membershipId: string) {
+        const vehicles = await this.prisma.vehicle.findMany({
+            where: {
+                managerMembershipId: membershipId,
+                status: {
+                    not: 'ARCHIVED',
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        return vehicles.map((vehicle) => vehicle.id);
     }
 
     async registerOrganization(dto: RegisterOrganizationDto) {
@@ -73,15 +103,19 @@ export class AuthService {
                     },
                 });
 
-                const accessToken = await this.generateAccessToken({
+                const tokenPayload = {
                     sub: user.id,
                     membershipId: membership.id,
                     organizationId: organization.id,
                     role: membership.role,
-                });
+                };
+
+                const accessToken = await this.generateAccessToken(tokenPayload);
+                const refreshToken = await this.generateRefreshToken(tokenPayload);
 
                 return {
                     accessToken,
+                    refreshToken,
                     user: {
                         id: user.id,
                         email: user.email,
@@ -93,10 +127,12 @@ export class AuthService {
                         ico: organization.ico,
                         contactEmail: organization.contactEmail,
                     },
-                    membership: {
+                    member: {
                         id: membership.id,
+                        organizationId: membership.organizationId,
                         role: membership.role,
                         status: membership.status,
+                        managedVehicleIds: [],
                     },
                 };
             });
@@ -116,47 +152,19 @@ export class AuthService {
         });
     }
 
-    async me(currentUser: {
-        userId: string;
-        membershipId: string;
-        organizationId: string;
-        role: string;
-    }) {
-        const membership = await this.prisma.membership.findFirst({
-            where: {
-                id: currentUser.membershipId,
-                organizationId: currentUser.organizationId,
-                userId: currentUser.userId,
-                status: 'ACTIVE',
-            },
-            include: {
-                user: true,
-                organization: true,
-            },
-        });
+    private async generateRefreshToken(
+        payload: RefreshTokenPayload,
+    ): Promise<string> {
+        const secret = process.env.JWT_REFRESH_SECRET;
 
-        if (!membership) {
-            throw new UnauthorizedException();
+        if (!secret) {
+            throw new Error('JWT_REFRESH_SECRET is not set');
         }
 
-        return {
-            user: {
-                id: membership.user.id,
-                email: membership.user.email,
-                name: membership.user.name,
-            },
-            organization: {
-                id: membership.organization.id,
-                name: membership.organization.name,
-                ico: membership.organization.ico,
-                contactEmail: membership.organization.contactEmail,
-            },
-            membership: {
-                id: membership.id,
-                role: membership.role,
-                status: membership.status,
-            },
-        };
+        return this.jwtService.signAsync(payload, {
+            secret,
+            expiresIn: '7d',
+        });
     }
 
     async login(dto: LoginDto) {
@@ -191,15 +199,21 @@ export class AuthService {
             throw new UnauthorizedException('Membership is not active.');
         }
 
-        const accessToken = await this.generateAccessToken({
+        const tokenPayload = {
             sub: user.id,
             membershipId: membership.id,
             organizationId: membership.organizationId,
             role: membership.role,
-        });
+        };
+
+        const accessToken = await this.generateAccessToken(tokenPayload);
+        const refreshToken = await this.generateRefreshToken(tokenPayload);
+
+        const managedVehicleIds = await this.getManagedVehicleIds(membership.id);
 
         return {
             accessToken,
+            refreshToken,
             user: {
                 id: user.id,
                 email: user.email,
@@ -211,128 +225,141 @@ export class AuthService {
                 ico: membership.organization.ico,
                 contactEmail: membership.organization.contactEmail,
             },
-            membership: {
+            member: {
                 id: membership.id,
+                organizationId: membership.organizationId,
                 role: membership.role,
                 status: membership.status,
+                managedVehicleIds,
             },
         };
     }
 
-    async acceptInvitation(dto: AcceptInvitationDto) {
-        const tokenHash = crypto
-            .createHash('sha256')
-            .update(dto.token)
-            .digest('hex');
+    async logout() {
+        return undefined;
+    }
 
-        const invitation = await this.prisma.invitation.findFirst({
+    async refresh(dto: RefreshTokenDto) {
+        const secret = process.env.JWT_REFRESH_SECRET;
+
+        if (!secret) {
+            throw new Error('JWT_REFRESH_SECRET is not set');
+        }
+
+        let payload: RefreshTokenPayload;
+
+        try {
+            payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
+                dto.refreshToken,
+                {
+                    secret,
+                },
+            );
+        } catch {
+            throw new UnauthorizedException('Invalid refresh token.');
+        }
+
+        const membership = await this.prisma.membership.findFirst({
+            where: {
+                id: payload.membershipId,
+                userId: payload.sub,
+                organizationId: payload.organizationId,
+                status: 'ACTIVE',
+            },
+        });
+
+        if (!membership) {
+            throw new UnauthorizedException('Membership is not active.');
+        }
+
+        const accessToken = await this.generateAccessToken({
+            sub: payload.sub,
+            membershipId: membership.id,
+            organizationId: membership.organizationId,
+            role: membership.role,
+        });
+
+        return {
+            accessToken,
+        };
+    }
+
+    async requestPasswordReset(dto: PasswordResetRequestDto) {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                email: dto.email,
+            },
+        });
+
+        // API z bezpečnostních důvodů vrací 204 vždy,
+        // i když e-mail neexistuje.
+        if (!user) {
+            return undefined;
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const tokenHash = hashToken(token);
+
+        await this.prisma.passwordResetToken.create({
+            data: {
+                userId: user.id,
+                tokenHash,
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            },
+        });
+
+        // TODO: Později poslat e-mailem.
+        // Pro lokální vývoj si token vezmeš z backend konzole.
+        console.log('');
+        console.log('Password reset token:');
+        console.log(token);
+        console.log('');
+
+        return undefined;
+    }
+
+    async confirmPasswordReset(dto: PasswordResetConfirmDto) {
+        const tokenHash = hashToken(dto.token);
+
+        const passwordResetToken = await this.prisma.passwordResetToken.findFirst({
             where: {
                 tokenHash,
+                usedAt: null,
+                expiresAt: {
+                    gt: new Date(),
+                },
             },
             include: {
-                organization: true,
+                user: true,
             },
         });
 
-        if (!invitation) {
-            throw new UnauthorizedException('Invalid invitation token.');
+        if (!passwordResetToken) {
+            throw new BadRequestException('Invalid or expired password reset token.');
         }
 
-        if (invitation.cancelledAt) {
-            throw new ConflictException('Invitation has been cancelled.');
-        }
+        const passwordHash = await bcrypt.hash(dto.newPassword, 12);
 
-        if (invitation.acceptedAt) {
-            throw new ConflictException('Invitation has already been accepted.');
-        }
-
-        if (invitation.expiresAt < new Date()) {
-            throw new ConflictException('Invitation has expired.');
-        }
-
-        const existingUser = await this.prisma.user.findUnique({
-            where: {
-                email: invitation.email,
-            },
-        });
-
-        if (existingUser) {
-            const existingMembership = await this.prisma.membership.findFirst({
+        await this.prisma.$transaction([
+            this.prisma.user.update({
                 where: {
-                    organizationId: invitation.organizationId,
-                    userId: existingUser.id,
-                },
-            });
-
-            if (existingMembership) {
-                throw new ConflictException(
-                    'User is already a member of this organization.',
-                );
-            }
-        }
-
-        const passwordHash = await bcrypt.hash(dto.password, 12);
-        const userName = dto.name ?? invitation.name ?? invitation.email;
-
-        return this.prisma.$transaction(async (tx) => {
-            const user =
-                existingUser ??
-                (await tx.user.create({
-                    data: {
-                        email: invitation.email,
-                        name: userName,
-                        passwordHash,
-                    },
-                }));
-
-            const membership = await tx.membership.create({
-                data: {
-                    organizationId: invitation.organizationId,
-                    userId: user.id,
-                    role: 'MEMBER',
-                    status: 'ACTIVE',
-                },
-            });
-
-            const acceptedInvitation = await tx.invitation.update({
-                where: {
-                    id: invitation.id,
+                    id: passwordResetToken.userId,
                 },
                 data: {
-                    acceptedAt: new Date(),
+                    passwordHash,
+                    updatedAt: new Date(),
                 },
-            });
+            }),
+            this.prisma.passwordResetToken.update({
+                where: {
+                    id: passwordResetToken.id,
+                },
+                data: {
+                    usedAt: new Date(),
+                },
+            }),
+        ]);
 
-            const accessToken = await this.generateAccessToken({
-                sub: user.id,
-                membershipId: membership.id,
-                organizationId: invitation.organizationId,
-                role: membership.role,
-            });
-
-            return {
-                accessToken,
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
-                },
-                organization: {
-                    id: invitation.organization.id,
-                    name: invitation.organization.name,
-                    ico: invitation.organization.ico,
-                    contactEmail: invitation.organization.contactEmail,
-                },
-                membership: {
-                    id: membership.id,
-                    role: membership.role,
-                    status: membership.status,
-                },
-                invitation: {
-                    id: acceptedInvitation.id,
-                    acceptedAt: acceptedInvitation.acceptedAt,
-                },
-            };
-        });
+        return undefined;
     }
 }
