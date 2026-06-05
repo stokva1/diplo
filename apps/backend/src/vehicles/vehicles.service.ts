@@ -60,6 +60,11 @@ export class VehiclesService {
             }
         }
 
+        await this.validateManagerMembership(
+            currentUser.organizationId,
+            dto.managerMemberId,
+        );
+
         const vehicle = await this.prisma.vehicle.create({
             data: {
                 organizationId: currentUser.organizationId,
@@ -331,6 +336,11 @@ export class VehiclesService {
             }
         }
 
+        await this.validateManagerMembership(
+            currentUser.organizationId,
+            dto.managerMemberId,
+        );
+
         const oldValues = {
             name: existingVehicle.name,
             licensePlate: existingVehicle.licensePlate,
@@ -447,7 +457,7 @@ export class VehiclesService {
             endAt,
         );
 
-        const { page, limit, skip, take } = getPagination(query);
+        const {page, limit, skip, take} = getPagination(query);
         const paginatedVehicles = vehicles.slice(skip, skip + take);
 
         return {
@@ -685,6 +695,30 @@ export class VehiclesService {
             createdAt: issue.createdAt,
             updatedAt: issue.updatedAt,
         };
+    }
+
+    private async validateManagerMembership(
+        organizationId: string,
+        managerMemberId?: string | null,
+    ) {
+        if (managerMemberId === undefined || managerMemberId === null) {
+            return;
+        }
+
+        const managerMembership = await this.prisma.membership.findFirst({
+            where: {
+                id: managerMemberId,
+                organizationId,
+            },
+        });
+
+        if (!managerMembership) {
+            throw new NotFoundException('Vehicle manager was not found.');
+        }
+
+        if (managerMembership.status !== 'ACTIVE') {
+            throw new BadRequestException('Vehicle manager must be an active member.');
+        }
     }
 
     private getOrderBy(sort?: string) {

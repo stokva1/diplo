@@ -1,6 +1,6 @@
 import {
     BadRequestException,
-    ConflictException,
+    ConflictException, ForbiddenException,
     Injectable,
     InternalServerErrorException,
     UnauthorizedException,
@@ -198,7 +198,7 @@ export class AuthService {
         );
 
         if (!membership) {
-            throw new UnauthorizedException('Membership is not active.');
+            throw new ForbiddenException('Membership is not active.');
         }
 
         const tokenPayload = {
@@ -271,7 +271,7 @@ export class AuthService {
         });
 
         if (!membership) {
-            throw new UnauthorizedException('Membership is not active.');
+            throw new ForbiddenException('Membership is not active.');
         }
 
         const accessToken = await this.generateAccessToken({
