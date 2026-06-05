@@ -2,7 +2,7 @@ import {
     Body,
     Controller,
     Get,
-    Param,
+    Param, ParseUUIDPipe,
     Patch,
     Post, Query,
     Req,
@@ -56,7 +56,7 @@ export class VehiclesController {
     @Get(':vehicleId')
     findOne(
         @Req() request: AuthenticatedRequest,
-        @Param('vehicleId') vehicleId: string,
+        @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
     ) {
         return this.vehiclesService.findOne(request.user, vehicleId);
     }
@@ -64,7 +64,7 @@ export class VehiclesController {
     @Post(':vehicleId/issues')
     createIssue(
         @Req() request: AuthenticatedRequest,
-        @Param('vehicleId') vehicleId: string,
+        @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
         @Body() dto: CreateReservationIssueDto,
     ) {
         return this.vehiclesService.createIssue(
@@ -77,7 +77,7 @@ export class VehiclesController {
     @Patch(':vehicleId')
     update(
         @Req() request: AuthenticatedRequest,
-        @Param('vehicleId') vehicleId: string,
+        @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
         @Body() dto: UpdateVehicleDto,
     ) {
         return this.vehiclesService.update(request.user, vehicleId, dto);
@@ -86,7 +86,7 @@ export class VehiclesController {
     @Post(':vehicleId/archive')
     archive(
         @Req() request: AuthenticatedRequest,
-        @Param('vehicleId') vehicleId: string,
+        @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
     ) {
         return this.vehiclesService.archive(request.user, vehicleId);
     }

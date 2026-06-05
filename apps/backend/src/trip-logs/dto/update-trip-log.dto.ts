@@ -1,4 +1,4 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min} from 'class-validator';
 
 export class UpdateTripLogDto {
     @IsInt()
@@ -20,7 +20,7 @@ export class UpdateTripLogDto {
     @IsOptional()
     refuelingCost?: number;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     refuelingReceiptFileId?: string;
 

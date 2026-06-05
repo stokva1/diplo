@@ -14,7 +14,7 @@ export class CreateReservationIssueDto {
 
     @IsArray()
     @ArrayUnique()
-    @IsUUID('4', { each: true })
+    @IsUUID('4', {each: true})
     @IsOptional()
     photoFileIds?: string[];
 }

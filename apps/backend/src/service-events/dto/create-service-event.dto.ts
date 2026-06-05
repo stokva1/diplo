@@ -1,4 +1,4 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min} from 'class-validator';
 
 export class CreateServiceEventDto {
     @IsString()
@@ -20,7 +20,7 @@ export class CreateServiceEventDto {
     @IsOptional()
     cost?: number;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     invoiceFileId?: string;
 }

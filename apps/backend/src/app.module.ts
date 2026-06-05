@@ -23,6 +23,7 @@ import {APP_GUARD, APP_INTERCEPTOR} from "@nestjs/core";
 import {NoStoreInterceptor} from "./common/interceptors/no-store.interceptor";
 import {MeModule} from "./me/me.module";
 import {ThrottlerGuard, ThrottlerModule} from "@nestjs/throttler";
+import {NotificationsModule} from "./notifications/notifications.module";
 
 @Module({
     imports: [
@@ -52,6 +53,7 @@ import {ThrottlerGuard, ThrottlerModule} from "@nestjs/throttler";
         SettingsModule,
         ExportsModule,
         AuditModule,
+        NotificationsModule,
     ],
     controllers: [AppController, HealthController],
     providers: [

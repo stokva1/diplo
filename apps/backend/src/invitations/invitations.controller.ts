@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Post, Query, Req, UseGuards} from '@nestjs/common';
+import {Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, UseGuards} from '@nestjs/common';
 import {Request} from 'express';
 import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
 import {CreateInvitationDto} from './dto/create-invitation.dto';
@@ -55,7 +55,7 @@ export class InvitationsController {
     @Post(':invitationId/resend')
     resend(
         @Req() request: AuthenticatedRequest,
-        @Param('invitationId') invitationId: string,
+        @Param('invitationId', new ParseUUIDPipe()) invitationId: string,
     ) {
         return this.invitationsService.resend(request.user, invitationId);
     }
@@ -64,7 +64,7 @@ export class InvitationsController {
     @Post(':invitationId/cancel')
     cancel(
         @Req() request: AuthenticatedRequest,
-        @Param('invitationId') invitationId: string,
+        @Param('invitationId', new ParseUUIDPipe()) invitationId: string,
     ) {
         return this.invitationsService.cancel(request.user, invitationId);
     }

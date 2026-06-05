@@ -1,4 +1,4 @@
-import {IsDateString, IsIn, IsInt, IsOptional, IsString, Max, Min} from 'class-validator';
+import {IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min} from 'class-validator';
 import {Type} from "class-transformer";
 
 export class FindMissingTripLogsQueryDto {
@@ -24,11 +24,11 @@ export class FindMissingTripLogsQueryDto {
     @IsIn(['mine', 'managed', 'all'])
     scope?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     vehicleId?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     memberId?: string;
 

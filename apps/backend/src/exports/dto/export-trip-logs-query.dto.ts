@@ -1,4 +1,4 @@
-import { IsDateString, IsIn, IsOptional, IsString } from 'class-validator';
+import {IsDateString, IsIn, IsOptional, IsString, IsUUID} from 'class-validator';
 
 export class ExportTripLogsQueryDto {
     @IsString()
@@ -13,7 +13,7 @@ export class ExportTripLogsQueryDto {
     @IsOptional()
     to?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     vehicleId?: string;
 

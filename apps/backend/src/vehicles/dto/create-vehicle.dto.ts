@@ -3,7 +3,7 @@ import {
     IsInt,
     IsNotEmpty,
     IsOptional,
-    IsString,
+    IsString, IsUUID,
     Min,
 } from 'class-validator';
 
@@ -36,7 +36,7 @@ export class CreateVehicleDto {
     @Min(0)
     currentOdometerKm: number;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     managerMemberId?: string;
 

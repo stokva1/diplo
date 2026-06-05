@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import {IsIn, IsOptional, IsString, MinLength} from 'class-validator';
 
 export class UpdateMembershipDto {
     @IsString()

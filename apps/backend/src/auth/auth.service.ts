@@ -14,6 +14,7 @@ import {JwtService} from '@nestjs/jwt';
 import {PasswordResetConfirmDto} from "./dto/password-reset-confirm.dto";
 import {PasswordResetRequestDto} from "./dto/password-reset-request.dto";
 import {RefreshTokenDto} from "./dto/refresh-token.dto";
+import {NotificationsService} from "../notifications/notifications.service";
 
 type AccessTokenPayload = {
     sub: string;
@@ -38,6 +39,7 @@ export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
+        private readonly notificationsService: NotificationsService,
     ) {
     }
 
@@ -291,8 +293,6 @@ export class AuthService {
             },
         });
 
-        // API z bezpečnostních důvodů vrací 204 vždy,
-        // i když e-mail neexistuje.
         if (!user) {
             return undefined;
         }
@@ -308,12 +308,15 @@ export class AuthService {
             },
         });
 
-        // TODO: Později poslat e-mailem.
-        // Pro lokální vývoj si token vezmeš z backend konzole.
-        console.log('');
-        console.log('Password reset token:');
-        console.log(token);
-        console.log('');
+        try {
+            await this.notificationsService.sendPasswordResetEmail({
+                to: user.email,
+                name: user.name,
+                token,
+            });
+        } catch (error) {
+            console.error('Password reset e-mail could not be sent.', error);
+        }
 
         return undefined;
     }

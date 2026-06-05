@@ -3,7 +3,7 @@ import {
     IsIn,
     IsInt,
     IsOptional,
-    IsString,
+    IsString, IsUUID,
     Max,
     Min,
 } from 'class-validator';
@@ -28,7 +28,7 @@ export class FindAuditLogsQueryDto {
     @IsOptional()
     sort?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     actorMemberId?: string;
 
@@ -36,7 +36,7 @@ export class FindAuditLogsQueryDto {
     @IsOptional()
     entityType?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     entityId?: string;
 

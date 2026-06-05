@@ -3,7 +3,7 @@ import {
     Body,
     Controller, Delete,
     Get, HttpCode, HttpStatus,
-    Param,
+    Param, ParseUUIDPipe,
     Post,
     Req,
     Res,
@@ -100,7 +100,7 @@ export class FilesController {
     @Get(':fileId/download')
     async download(
         @Req() request: AuthenticatedRequest,
-        @Param('fileId') fileId: string,
+        @Param('fileId', new ParseUUIDPipe()) fileId: string,
         @Res() response: Response,
     ) {
         const file = await this.filesService.findOne(request.user, fileId);
@@ -117,7 +117,7 @@ export class FilesController {
     @Get(':fileId')
     metadata(
         @Req() request: AuthenticatedRequest,
-        @Param('fileId') fileId: string,
+        @Param('fileId', new ParseUUIDPipe()) fileId: string,
     ) {
         return this.filesService.findMetadata(request.user, fileId);
     }
@@ -126,7 +126,7 @@ export class FilesController {
     @HttpCode(HttpStatus.NO_CONTENT)
     async delete(
         @Req() request: AuthenticatedRequest,
-        @Param('fileId') fileId: string,
+        @Param('fileId', new ParseUUIDPipe()) fileId: string,
     ) {
         await this.filesService.delete(request.user, fileId);
     }

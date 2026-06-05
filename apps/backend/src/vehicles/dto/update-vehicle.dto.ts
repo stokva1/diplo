@@ -2,7 +2,7 @@ import {
     IsIn,
     IsInt,
     IsOptional,
-    IsString,
+    IsString, IsUUID,
     Min,
 } from 'class-validator';
 
@@ -42,7 +42,7 @@ export class UpdateVehicleDto {
     @IsIn(['ACTIVE', 'UNAVAILABLE'])
     status?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     managerMemberId?: string | null;
 

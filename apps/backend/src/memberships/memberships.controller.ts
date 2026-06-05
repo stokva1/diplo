@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards} from '@nestjs/common';
+import {Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards} from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MembershipsService } from './memberships.service';
@@ -31,7 +31,7 @@ export class MembershipsController {
     @Get(':memberId')
     findOne(
         @Req() request: AuthenticatedRequest,
-        @Param('memberId') memberId: string,
+        @Param('memberId', new ParseUUIDPipe()) memberId: string,
     ) {
         return this.membershipsService.findOne(request.user, memberId);
     }
@@ -39,7 +39,7 @@ export class MembershipsController {
     @Patch(':memberId')
     update(
         @Req() request: AuthenticatedRequest,
-        @Param('memberId') memberId: string,
+        @Param('memberId', new ParseUUIDPipe()) memberId: string,
         @Body() dto: UpdateMembershipDto,
     ) {
         return this.membershipsService.update(request.user, memberId, dto);
@@ -48,7 +48,7 @@ export class MembershipsController {
     @Post(':memberId/deactivate')
     deactivate(
         @Req() request: AuthenticatedRequest,
-        @Param('memberId') memberId: string,
+        @Param('memberId', new ParseUUIDPipe()) memberId: string,
     ) {
         return this.membershipsService.deactivate(request.user, memberId);
     }

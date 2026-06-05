@@ -10,7 +10,7 @@ import {
     MinLength,
     ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import {Type} from 'class-transformer';
 
 class CreateTripLogIssueDto {
     @IsString()
@@ -19,7 +19,7 @@ class CreateTripLogIssueDto {
 
     @IsArray()
     @ArrayUnique()
-    @IsUUID('4', { each: true })
+    @IsUUID('4', {each: true})
     @IsOptional()
     photoFileIds?: string[];
 }
@@ -41,7 +41,7 @@ export class CreateTripLogDto {
     @IsOptional()
     refuelingCost?: number;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     refuelingReceiptFileId?: string;
 

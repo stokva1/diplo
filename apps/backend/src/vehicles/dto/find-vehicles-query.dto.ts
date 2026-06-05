@@ -1,4 +1,4 @@
-import {IsBooleanString, IsIn, IsInt, IsOptional, IsString, Max, Min} from 'class-validator';
+import {IsBooleanString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min} from 'class-validator';
 import {Type} from "class-transformer";
 
 export class FindVehiclesQueryDto {
@@ -28,7 +28,7 @@ export class FindVehiclesQueryDto {
     @IsIn(['ACTIVE', 'UNAVAILABLE', 'ARCHIVED'])
     status?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     managerId?: string;
 

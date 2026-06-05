@@ -3,7 +3,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/prisma/client';
+import {Prisma, PrismaClient} from '../generated/prisma/client';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -20,17 +20,24 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-function hashInvitationToken(token: string) {
+const PASSWORD = 'tajne-heslo';
+const INVITATION_TOKEN = 'seed-invitation-token';
+const PASSWORD_RESET_TOKEN = 'seed-password-reset-token';
+
+function hashToken(token: string) {
     return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 async function clearDatabase() {
+    await prisma.vehicleIssueAttachment.deleteMany();
     await prisma.tripLog.deleteMany();
     await prisma.vehicleIssue.deleteMany();
     await prisma.serviceEvent.deleteMany();
     await prisma.reservation.deleteMany();
     await prisma.invitation.deleteMany();
+    await prisma.passwordResetToken.deleteMany();
     await prisma.fileAttachment.deleteMany();
+    await prisma.auditLog.deleteMany();
     await prisma.vehicle.deleteMany();
     await prisma.organizationSettings.deleteMany();
     await prisma.membership.deleteMany();
@@ -43,7 +50,7 @@ async function main() {
     await clearDatabase();
 
     console.log('Creating users...');
-    const passwordHash = await bcrypt.hash('tajne-heslo', 12);
+    const passwordHash = await bcrypt.hash(PASSWORD, 12);
 
     const adminUser = await prisma.user.create({
         data: {
@@ -105,7 +112,7 @@ async function main() {
         },
     });
 
-    const disabledMembership = await prisma.membership.create({
+    await prisma.membership.create({
         data: {
             organizationId: organization.id,
             userId: disabledMemberUser.id,
@@ -127,11 +134,43 @@ async function main() {
             currentOdometerKm: 84520,
             status: 'ACTIVE',
             managerMembershipId: adminMembership.id,
-            note: 'Testovaci vozidlo',
+            note: 'Testovaci vozidlo spravovane adminem',
         },
     });
 
-    const fabia = await prisma.vehicle.create({
+    const i30 = await prisma.vehicle.create({
+        data: {
+            organizationId: organization.id,
+            name: 'Hyundai i30',
+            licensePlate: '3AB 3333',
+            brand: 'Hyundai',
+            model: 'i30 kombi',
+            vin: 'HYUNDAII30123456',
+            fuelType: 'DIESEL',
+            currentOdometerKm: 51200,
+            status: 'ACTIVE',
+            managerMembershipId: activeMembership.id,
+            note: 'Testovaci vozidlo spravovane beznym clenem',
+        },
+    });
+
+    await prisma.vehicle.create({
+        data: {
+            organizationId: organization.id,
+            name: 'VW Caddy',
+            licensePlate: '4AB 4444',
+            brand: 'Volkswagen',
+            model: 'Caddy',
+            vin: 'VWLCADDY1234567',
+            fuelType: 'DIESEL',
+            currentOdometerKm: 90200,
+            status: 'UNAVAILABLE',
+            managerMembershipId: adminMembership.id,
+            note: 'Docasne nedostupne vozidlo',
+        },
+    });
+
+    await prisma.vehicle.create({
         data: {
             organizationId: organization.id,
             name: 'Skoda Fabia',
@@ -147,8 +186,45 @@ async function main() {
         },
     });
 
+    console.log('Creating file metadata...');
+    const receiptFile = await prisma.fileAttachment.create({
+        data: {
+            organizationId: organization.id,
+            uploadedByMembershipId: adminMembership.id,
+            fileName: 'seed-fuel-receipt.pdf',
+            mimeType: 'application/pdf',
+            fileSizeBytes: 128,
+            purpose: 'FUEL_RECEIPT',
+            storageKey: 'uploads/seed-fuel-receipt.pdf',
+        },
+    });
+
+    const issuePhoto = await prisma.fileAttachment.create({
+        data: {
+            organizationId: organization.id,
+            uploadedByMembershipId: activeMembership.id,
+            fileName: 'seed-issue-photo.png',
+            mimeType: 'image/png',
+            fileSizeBytes: 128,
+            purpose: 'ISSUE_PHOTO',
+            storageKey: 'uploads/seed-issue-photo.png',
+        },
+    });
+
+    const serviceInvoice = await prisma.fileAttachment.create({
+        data: {
+            organizationId: organization.id,
+            uploadedByMembershipId: adminMembership.id,
+            fileName: 'seed-service-invoice.pdf',
+            mimeType: 'application/pdf',
+            fileSizeBytes: 128,
+            purpose: 'SERVICE_INVOICE',
+            storageKey: 'uploads/seed-service-invoice.pdf',
+        },
+    });
+
     console.log('Creating reservations...');
-    const futureReservation = await prisma.reservation.create({
+    await prisma.reservation.create({
         data: {
             vehicleId: octavia.id,
             membershipId: adminMembership.id,
@@ -161,7 +237,7 @@ async function main() {
         },
     });
 
-    const cancelledReservation = await prisma.reservation.create({
+    await prisma.reservation.create({
         data: {
             vehicleId: octavia.id,
             membershipId: adminMembership.id,
@@ -189,7 +265,7 @@ async function main() {
         },
     });
 
-    const missingTripLogReservation = await prisma.reservation.create({
+    await prisma.reservation.create({
         data: {
             vehicleId: octavia.id,
             membershipId: adminMembership.id,
@@ -202,6 +278,19 @@ async function main() {
         },
     });
 
+    await prisma.reservation.create({
+        data: {
+            vehicleId: i30.id,
+            membershipId: activeMembership.id,
+            startAt: new Date('2026-06-18T08:00:00.000Z'),
+            endAt: new Date('2026-06-18T11:00:00.000Z'),
+            origin: 'Praha',
+            destination: 'Hradec Kralove',
+            purpose: 'Budouci rezervace bezneho clena',
+            status: 'ACTIVE',
+        },
+    });
+
     console.log('Creating trip log...');
     await prisma.tripLog.create({
         data: {
@@ -210,13 +299,14 @@ async function main() {
             odometerEndKm: 84520,
             refueled: true,
             refuelingCost: 1200,
+            refuelingReceiptFileId: receiptFile.id,
             note: 'Vse v poradku',
             completedByMembershipId: adminMembership.id,
         },
     });
 
     console.log('Creating issues...');
-    await prisma.vehicleIssue.create({
+    const resolvedIssue = await prisma.vehicleIssue.create({
         data: {
             vehicleId: octavia.id,
             reservationId: finishedReservation.id,
@@ -225,6 +315,13 @@ async function main() {
             status: 'RESOLVED',
             resolvedByMembershipId: adminMembership.id,
             resolvedAt: new Date(),
+        },
+    });
+
+    await prisma.vehicleIssueAttachment.create({
+        data: {
+            vehicleIssueId: resolvedIssue.id,
+            fileAttachmentId: issuePhoto.id,
         },
     });
 
@@ -247,6 +344,7 @@ async function main() {
             startAt: new Date('2026-06-13T06:00:00.000Z'),
             endAt: new Date('2026-06-13T10:00:00.000Z'),
             cost: 4200,
+            invoiceFileId: serviceInvoice.id,
             status: 'CANCELLED',
             cancelledAt: new Date(),
             cancelledByMembershipId: adminMembership.id,
@@ -266,17 +364,35 @@ async function main() {
         },
     });
 
-    console.log('Creating invitation...');
-    const invitationToken = 'seed-invitation-token';
-
+    console.log('Creating invitation and password reset token...');
     await prisma.invitation.create({
         data: {
             organizationId: organization.id,
             email: 'pozvany.clen@firma.cz',
             name: 'Pozvany Clen',
-            tokenHash: hashInvitationToken(invitationToken),
+            tokenHash: hashToken(INVITATION_TOKEN),
             expiresAt: new Date('2026-12-31T23:59:59.000Z'),
             createdById: adminMembership.id,
+        },
+    });
+
+    await prisma.passwordResetToken.create({
+        data: {
+            userId: activeMemberUser.id,
+            tokenHash: hashToken(PASSWORD_RESET_TOKEN),
+            expiresAt: new Date('2026-12-31T23:59:59.000Z'),
+        },
+    });
+
+    await prisma.auditLog.create({
+        data: {
+            organizationId: organization.id,
+            actorMembershipId: adminMembership.id,
+            action: 'SEED_CREATED',
+            entityType: 'Organization',
+            entityId: organization.id,
+            oldValues: Prisma.JsonNull,
+            newValues: { name: organization.name },
         },
     });
 
@@ -285,18 +401,21 @@ async function main() {
     console.log('');
     console.log('Admin login:');
     console.log('  email: petr.svoboda@firma.cz');
-    console.log('  password: tajne-heslo');
+    console.log(`  password: ${PASSWORD}`);
     console.log('');
     console.log('Active member login:');
     console.log('  email: jana.novakova@firma.cz');
-    console.log('  password: tajne-heslo');
+    console.log(`  password: ${PASSWORD}`);
     console.log('');
     console.log('Disabled member login:');
     console.log('  email: disabled.user@firma.cz');
-    console.log('  password: tajne-heslo');
+    console.log(`  password: ${PASSWORD}`);
     console.log('');
     console.log('Invitation token:');
-    console.log(`  ${invitationToken}`);
+    console.log(`  ${INVITATION_TOKEN}`);
+    console.log('');
+    console.log('Password reset token for jana.novakova@firma.cz:');
+    console.log(`  ${PASSWORD_RESET_TOKEN}`);
 }
 
 main()

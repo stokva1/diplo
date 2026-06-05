@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards} from '@nestjs/common';
+import {Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards} from '@nestjs/common';
 import {Request} from 'express';
 import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
 import {CreateServiceEventDto} from './dto/create-service-event.dto';
@@ -24,7 +24,7 @@ export class ServiceEventsController {
     @Post('vehicles/:vehicleId/service-events')
     create(
         @Req() request: AuthenticatedRequest,
-        @Param('vehicleId') vehicleId: string,
+        @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
         @Body() dto: CreateServiceEventDto,
     ) {
         return this.serviceEventsService.create(request.user, vehicleId, dto);
@@ -41,7 +41,7 @@ export class ServiceEventsController {
     @Get('vehicles/:vehicleId/service-events')
     findByVehicle(
         @Req() request: AuthenticatedRequest,
-        @Param('vehicleId') vehicleId: string,
+        @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
         @Query() query: FindServiceEventsQueryDto
     ) {
         return this.serviceEventsService.findByVehicle(request.user, vehicleId, query);
@@ -50,7 +50,7 @@ export class ServiceEventsController {
     @Post('service-events/:serviceEventId/cancel')
     cancel(
         @Req() request: AuthenticatedRequest,
-        @Param('serviceEventId') serviceEventId: string,
+        @Param('serviceEventId', new ParseUUIDPipe()) serviceEventId: string,
     ) {
         return this.serviceEventsService.cancel(request.user, serviceEventId);
     }
@@ -58,7 +58,7 @@ export class ServiceEventsController {
     @Get('service-events/:serviceEventId')
     findOne(
         @Req() request: AuthenticatedRequest,
-        @Param('serviceEventId') serviceEventId: string,
+        @Param('serviceEventId', new ParseUUIDPipe()) serviceEventId: string,
     ) {
         return this.serviceEventsService.findOne(request.user, serviceEventId);
     }
@@ -66,7 +66,7 @@ export class ServiceEventsController {
     @Patch('service-events/:serviceEventId')
     update(
         @Req() request: AuthenticatedRequest,
-        @Param('serviceEventId') serviceEventId: string,
+        @Param('serviceEventId', new ParseUUIDPipe()) serviceEventId: string,
         @Body() dto: UpdateServiceEventDto,
     ) {
         return this.serviceEventsService.update(request.user, serviceEventId, dto);

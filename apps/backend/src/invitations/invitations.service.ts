@@ -13,6 +13,7 @@ import {JwtService} from '@nestjs/jwt';
 import {AcceptInvitationDto} from './dto/accept-invitation.dto';
 import {FindInvitationsQueryDto} from "./dto/find-invitations-query.dto";
 import {buildPaginationMeta, getPagination} from "../common/pagination";
+import {NotificationsService} from "../notifications/notifications.service";
 
 type CurrentUser = {
     userId: string;
@@ -30,6 +31,7 @@ export class InvitationsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
+        private readonly notificationsService: NotificationsService,
     ) {
     }
 
@@ -83,6 +85,7 @@ export class InvitationsService {
                 createdById: currentUser.membershipId,
             },
             include: {
+                organization: true,
                 createdBy: {
                     include: {
                         user: true,
@@ -90,6 +93,17 @@ export class InvitationsService {
                 },
             },
         });
+
+        try {
+            await this.notificationsService.sendInvitationEmail({
+                to: invitation.email,
+                name: invitation.name,
+                organizationName: invitation.organization.name,
+                token,
+            });
+        } catch (error) {
+            console.error('Invitation e-mail could not be sent.', error);
+        }
 
         return this.toInvitationResponse(invitation);
     }
@@ -475,6 +489,17 @@ export class InvitationsService {
                 },
             },
         });
+
+        try {
+            await this.notificationsService.sendInvitationEmail({
+                to: updatedInvitation.email,
+                name: updatedInvitation.name,
+                organizationName: updatedInvitation.organization.name,
+                token,
+            });
+        } catch (error) {
+            console.error('Invitation e-mail could not be sent.', error);
+        }
 
         return this.toInvitationResponse(updatedInvitation);
     }
