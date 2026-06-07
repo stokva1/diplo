@@ -1,0 +1,1 @@
+export type Role = "MEMBER" | "VEHICLE_MANAGER" | "ADMIN";
