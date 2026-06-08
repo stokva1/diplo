@@ -146,7 +146,7 @@ export function SidebarNav({
                                     href={item.href}
                                     onClick={onNavigate}
                                     className={cn(
-                                        "group flex items-center gap-3 rounded-[8px] px-3 py-2 text-sm transition-colors",
+                                        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                                         active
                                             ? "bg-sidebar-primary font-medium text-sidebar-primary-foreground"
                                             : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

@@ -35,7 +35,7 @@ export function Topbar({
             <div className="relative hidden max-w-sm flex-1 sm:block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
-                    className="h-9 w-full rounded-[8px] border border-border bg-muted/50 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/10"
+                    className="h-9 w-full rounded-md border border-border bg-muted/50 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/10"
                     placeholder="Search vehicles, reservations, members..."
                 />
             </div>
@@ -59,7 +59,7 @@ export function Topbar({
                         {initials}
                     </button>
 
-                    <div className="invisible absolute right-0 top-11 w-56 rounded-[8px] border border-border bg-card p-1 opacity-0 shadow-sm transition-all group-hover:visible group-hover:opacity-100">
+                    <div className="invisible absolute right-0 top-11 w-56 rounded-md border border-border bg-card p-1 opacity-0 shadow-sm transition-all group-hover:visible group-hover:opacity-100">
                         <div className="px-3 py-2">
                             <p className="truncate text-sm font-medium text-card-foreground">
                                 {userName}
