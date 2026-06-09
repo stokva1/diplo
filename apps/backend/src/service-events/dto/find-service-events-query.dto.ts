@@ -1,4 +1,4 @@
-import {IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min} from 'class-validator';
+import {IsDateString, IsIn, IsInt, IsOptional, IsUUID, Max, Min} from 'class-validator';
 import {Type} from "class-transformer";
 
 export class FindServiceEventsQueryDto {
@@ -19,7 +19,6 @@ export class FindServiceEventsQueryDto {
     @IsIn(['startAt', '-startAt', 'endAt', '-endAt', 'createdAt', '-createdAt'])
     sort?: string;
 
-    @IsString()
     @IsOptional()
     @IsIn(['managed', 'all'])
     scope?: string;

@@ -2,18 +2,20 @@ import {
     IsDateString,
     IsNumber,
     IsOptional,
-    IsString,
+    IsString, IsUUID, MaxLength,
     Min,
 } from 'class-validator';
 
 export class UpdateServiceEventDto {
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     title?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
-    description?: string | null;
+    description?: string;
 
     @IsDateString()
     @IsOptional()
@@ -26,9 +28,9 @@ export class UpdateServiceEventDto {
     @IsNumber()
     @Min(0)
     @IsOptional()
-    cost?: number | null;
+    cost?: number;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
-    invoiceFileId?: string | null;
+    invoiceFileId?: string;
 }

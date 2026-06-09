@@ -1,4 +1,4 @@
-import {IsIn, IsInt, IsOptional, IsString, Max, Min} from 'class-validator';
+import {IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min} from 'class-validator';
 import {Type} from 'class-transformer';
 
 export class FindInvitationsQueryDto {
@@ -23,7 +23,8 @@ export class FindInvitationsQueryDto {
     @IsIn(['PENDING', 'ACCEPTED', 'EXPIRED', 'CANCELLED'])
     status?: string;
 
-    @IsOptional()
     @IsString()
+    @MaxLength(255)
+    @IsOptional()
     search?: string;
 }

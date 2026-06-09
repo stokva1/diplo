@@ -1,4 +1,4 @@
-import {IsBooleanString, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min} from 'class-validator';
+import {IsBooleanString, IsDateString, IsIn, IsInt, IsOptional, IsUUID, Max, Min} from 'class-validator';
 import {Type} from "class-transformer";
 
 export class FindTripLogsQueryDto {
@@ -19,7 +19,6 @@ export class FindTripLogsQueryDto {
     @IsIn(['completedAt', '-completedAt', 'createdAt', '-createdAt', 'startAt', '-startAt'])
     sort?: string;
 
-    @IsString()
     @IsOptional()
     @IsIn(['mine', 'managed', 'all'])
     scope?: string;

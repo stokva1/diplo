@@ -4,7 +4,7 @@ import {
     IsInt,
     IsOptional,
     IsString, IsUUID,
-    Max,
+    Max, MaxLength,
     Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -33,6 +33,7 @@ export class FindAuditLogsQueryDto {
     actorMemberId?: string;
 
     @IsString()
+    @MaxLength(100)
     @IsOptional()
     entityType?: string;
 
@@ -41,6 +42,7 @@ export class FindAuditLogsQueryDto {
     entityId?: string;
 
     @IsString()
+    @MaxLength(100)
     @IsOptional()
     action?: string;
 

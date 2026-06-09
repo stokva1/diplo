@@ -1,15 +1,15 @@
 import {
     ArrayUnique,
-    IsArray,
+    IsArray, IsNotEmpty,
     IsOptional,
     IsString,
-    IsUUID,
-    MinLength,
+    IsUUID, MaxLength,
 } from 'class-validator';
 
 export class CreateReservationIssueDto {
     @IsString()
-    @MinLength(1)
+    @MaxLength(255)
+    @IsNotEmpty()
     description: string;
 
     @IsArray()

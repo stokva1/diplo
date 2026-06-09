@@ -1,4 +1,4 @@
-import {IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min} from 'class-validator';
+import {IsDateString, IsIn, IsInt, IsOptional, IsUUID, Max, Min} from 'class-validator';
 import {Type} from "class-transformer";
 
 export class FindVehicleIssuesQueryDto {
@@ -19,12 +19,10 @@ export class FindVehicleIssuesQueryDto {
     @IsIn(['createdAt', '-createdAt', 'resolvedAt', '-resolvedAt'])
     sort?: string;
 
-    @IsString()
     @IsOptional()
     @IsIn(['mine', 'managed', 'all'])
     scope?: string;
 
-    @IsString()
     @IsOptional()
     @IsIn(['OPEN', 'RESOLVED'])
     status?: string;

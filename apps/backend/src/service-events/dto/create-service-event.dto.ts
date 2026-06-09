@@ -1,11 +1,13 @@
-import {IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min} from 'class-validator';
+import {IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min} from 'class-validator';
 
 export class CreateServiceEventDto {
     @IsString()
+    @MaxLength(255)
     @IsNotEmpty()
     title: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     description?: string;
 

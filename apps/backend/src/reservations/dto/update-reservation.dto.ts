@@ -1,7 +1,7 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import {IsDateString, IsOptional, IsString, IsUUID, MaxLength} from 'class-validator';
 
 export class UpdateReservationDto {
-    @IsString()
+    @IsUUID()
     @IsOptional()
     vehicleId?: string;
 
@@ -14,14 +14,17 @@ export class UpdateReservationDto {
     endAt?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     origin?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     destination?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     purpose?: string;
 }

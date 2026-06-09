@@ -2,19 +2,19 @@ import {
     ArrayUnique,
     IsArray,
     IsBoolean,
-    IsInt,
+    IsInt, IsNotEmpty,
     IsOptional,
     IsString,
-    IsUUID,
+    IsUUID, MaxLength,
     Min,
-    MinLength,
     ValidateNested,
 } from 'class-validator';
 import {Type} from 'class-transformer';
 
 class CreateTripLogIssueDto {
     @IsString()
-    @MinLength(1)
+    @MaxLength(255)
+    @IsNotEmpty()
     description: string;
 
     @IsArray()
@@ -46,6 +46,7 @@ export class CreateTripLogDto {
     refuelingReceiptFileId?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     note?: string;
 

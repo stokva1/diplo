@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {
-    CalendarPlus,
     CalendarDays,
     BookOpenText,
     TriangleAlert,
@@ -37,12 +36,6 @@ const sections: NavSection[] = [
                 href: "/dashboard",
                 label: "Dashboard",
                 icon: House,
-                roles: ["MEMBER", "VEHICLE_MANAGER", "ADMIN"],
-            },
-            {
-                href: "/reservations/new",
-                label: "New reservation",
-                icon: CalendarPlus,
                 roles: ["MEMBER", "VEHICLE_MANAGER", "ADMIN"],
             },
             {

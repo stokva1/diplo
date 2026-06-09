@@ -1,4 +1,4 @@
-import {IsBooleanString, IsDateString, IsIn, IsInt, IsOptional, IsString, Max, Min} from 'class-validator';
+import {IsBooleanString, IsDateString, IsIn, IsInt, IsOptional, IsUUID, Max, Min} from 'class-validator';
 import {Type} from "class-transformer";
 
 export class FindReservationsQueryDto {
@@ -15,26 +15,23 @@ export class FindReservationsQueryDto {
     @Max(100)
     limit?: number;
 
-    @IsString()
     @IsOptional()
     @IsIn(['startAt', '-startAt', 'endAt', '-endAt', 'createdAt', '-createdAt'])
     sort?: string;
 
-    @IsString()
     @IsOptional()
     @IsIn(['mine', 'managed', 'all'])
     scope?: string;
 
-    @IsString()
     @IsOptional()
     @IsIn(['ACTIVE', 'FINISHED', 'CANCELLED'])
     status?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     vehicleId?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     memberId?: string;
 

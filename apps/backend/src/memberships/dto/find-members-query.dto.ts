@@ -1,4 +1,4 @@
-import {IsIn, IsInt, IsOptional, IsString, Max, Min} from 'class-validator';
+import {IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min} from 'class-validator';
 import {Type} from 'class-transformer';
 
 export class FindMembersQueryDto {
@@ -19,12 +19,12 @@ export class FindMembersQueryDto {
     @IsOptional()
     sort?: string;
 
-    @IsString()
     @IsIn(['ACTIVE', 'DISABLED'])
     @IsOptional()
     status?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     search?: string;
 }

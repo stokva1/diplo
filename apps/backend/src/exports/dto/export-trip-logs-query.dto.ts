@@ -17,7 +17,7 @@ export class ExportTripLogsQueryDto {
     @IsOptional()
     vehicleId?: string;
 
-    @IsString()
+    @IsUUID()
     @IsOptional()
     memberId?: string;
 }

@@ -3,28 +3,33 @@ import {
     IsInt,
     IsNotEmpty,
     IsOptional,
-    IsString, IsUUID,
+    IsString, IsUUID, MaxLength,
     Min,
 } from 'class-validator';
 
 export class CreateVehicleDto {
     @IsString()
+    @MaxLength(255)
     @IsNotEmpty()
     name: string;
 
     @IsString()
+    @MaxLength(30)
     @IsNotEmpty()
     licensePlate: string;
 
     @IsString()
+    @MaxLength(100)
     @IsNotEmpty()
     brand: string;
 
     @IsString()
+    @MaxLength(100)
     @IsNotEmpty()
     model: string;
 
     @IsString()
+    @MaxLength(50)
     @IsOptional()
     vin?: string;
 
@@ -41,6 +46,7 @@ export class CreateVehicleDto {
     managerMemberId?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     note?: string;
 }

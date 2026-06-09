@@ -1,4 +1,4 @@
-import {IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min} from 'class-validator';
+import {IsBoolean, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min} from 'class-validator';
 
 export class UpdateTripLogDto {
     @IsInt()
@@ -25,6 +25,7 @@ export class UpdateTripLogDto {
     refuelingReceiptFileId?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     note?: string;
 }

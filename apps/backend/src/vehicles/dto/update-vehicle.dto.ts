@@ -2,32 +2,36 @@ import {
     IsIn,
     IsInt,
     IsOptional,
-    IsString, IsUUID,
+    IsString, IsUUID, MaxLength,
     Min,
 } from 'class-validator';
 
 export class UpdateVehicleDto {
     @IsString()
+    @MaxLength(255)
     @IsOptional()
     name?: string;
 
     @IsString()
+    @MaxLength(30)
     @IsOptional()
     licensePlate?: string;
 
     @IsString()
+    @MaxLength(100)
     @IsOptional()
     brand?: string;
 
     @IsString()
+    @MaxLength(100)
     @IsOptional()
     model?: string;
 
     @IsString()
+    @MaxLength(50)
     @IsOptional()
-    vin?: string | null;
+    vin?: string;
 
-    @IsString()
     @IsOptional()
     @IsIn(['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'LPG', 'CNG', 'OTHER'])
     fuelType?: string;
@@ -37,16 +41,16 @@ export class UpdateVehicleDto {
     @IsOptional()
     currentOdometerKm?: number;
 
-    @IsString()
     @IsOptional()
     @IsIn(['ACTIVE', 'UNAVAILABLE'])
     status?: string;
 
     @IsUUID()
     @IsOptional()
-    managerMemberId?: string | null;
+    managerMemberId?: string;
 
     @IsString()
+    @MaxLength(255)
     @IsOptional()
-    note?: string | null;
+    note?: string;
 }

@@ -5,12 +5,8 @@ import {useEffect, useState} from "react";
 import {
     ArrowRight,
     BookOpenText,
-    BriefcaseBusiness,
-    CalendarDays,
     Car,
     CheckCircle2,
-    MapPin,
-    Route,
     TriangleAlert,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
@@ -75,11 +71,11 @@ export default function DashboardPage() {
         <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col gap-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                        Dashboard
+                    <h1 className="text-4xl font-semibold tracking-tight text-foreground">
+                        Welcome back,
                     </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Overview of your reservations, trip logs and recent fleet activity.
+                    <p className="mt-1 text-base text-muted-foreground">
+                        Here is summary of what is happening across the fleet.
                     </p>
                 </div>
             </div>
@@ -112,70 +108,91 @@ export default function DashboardPage() {
             <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-12">
                 <div className="flex h-full flex-col gap-5 lg:col-span-8">
                     <section
-                        className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                        <div className="px-5 pt-5">
+                        className="flex flex-none flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                        <div className="flex items-center justify-between gap-3 px-5 pt-5">
                             <h2 className="text-lg font-semibold tracking-tight text-card-foreground">
-                                Your nearest upcoming reservation
+                                Your upcoming reservation
                             </h2>
+
+                            <Link
+                                href="/reservations"
+                                className="inline-flex h-6 items-center justify-center rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                                View all
+                            </Link>
                         </div>
 
                         {upcomingReservation ? (
-                            <div className="grid gap-5 px-5 pb-5 pt-5 md:grid-cols-[240px_1fr]">
-                                <div>
-                                    <div
-                                        className="flex aspect-video items-center justify-center rounded-lg border border-border bg-muted">
-                                        <Car className="size-6 text-muted-foreground"/>
-                                    </div>
-
-                                    <h3 className="mt-4 text-xl font-semibold tracking-tight text-card-foreground">
-                                        {upcomingReservation.vehicleName}
-                                    </h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        License plate: {upcomingReservation.licensePlate}
-                                    </p>
-                                </div>
-
-                                <div className="flex min-w-0 flex-col gap-5">
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <InfoBlock
-                                            label="When"
-                                            icon={CalendarDays}
-                                            value={`${formatDate(upcomingReservation.startAt)}, ${formatTime(
-                                                upcomingReservation.startAt,
-                                            )}–${formatTime(upcomingReservation.endAt)}`}
-                                        />
-
-                                        <InfoBlock
-                                            label="Purpose"
-                                            icon={BriefcaseBusiness}
-                                            value={upcomingReservation.purpose}
-                                        />
-
-                                        <div className="sm:col-span-2">
-                                            <p className="mb-1.5 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground">
-                                                Route
+                            <div className="flex px-5 pb-5 pt-4">
+                                <Link
+                                    href={`/reservations/${upcomingReservation.id}`}
+                                    className="group flex w-full flex-col rounded-xl border border-border p-4 transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm"
+                                >
+                                    <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                                        <div className="shrink-0 md:w-36">
+                                            <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                                                {formatDateRangeMonth(
+                                                    upcomingReservation.startAt,
+                                                    upcomingReservation.endAt,
+                                                )}
                                             </p>
 
-                                            <div
-                                                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm text-card-foreground">
-                                                <Route className="size-4 text-muted-foreground"/>
-                                                <span>{upcomingReservation.origin}</span>
-                                                <ArrowRight className="size-4 text-muted-foreground"/>
-                                                <MapPin className="size-4 text-muted-foreground"/>
-                                                <span>{upcomingReservation.destination}</span>
+                                            <p className="mt-1 text-5xl font-semibold tracking-tight text-card-foreground">
+                                                {formatDay(upcomingReservation.startAt)}
+                                            </p>
+
+                                            {isSameCalendarDay(upcomingReservation.startAt, upcomingReservation.endAt) ? (
+                                                <p className="mt-2 text-sm font-medium text-card-foreground">
+                                                    {formatTime(upcomingReservation.startAt)}–{formatTime(upcomingReservation.endAt)}
+                                                </p>
+                                            ) : (
+                                                <div className="mt-2 text-sm font-medium leading-5 text-card-foreground">
+                                                    <p>{formatShortDateTime(upcomingReservation.startAt)} –</p>
+                                                    <p>{formatShortDateTime(upcomingReservation.endAt)}</p>
+                                                </div>
+                                            )}
+
+                                            <p className="mt-1.5 max-w-36 text-xs leading-4 text-muted-foreground">
+                                                {upcomingReservation.purpose}
+                                            </p>
+                                        </div>
+
+                                        <div className="w-px self-stretch bg-border max-md:hidden"/>
+
+                                        <div className="flex min-w-0 flex-1 flex-col gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-border bg-background">
+                                                    <Car className="size-7 text-muted-foreground" />
+                                                </div>
+
+                                                <div className="min-w-0">
+                                                    <h3 className="truncate text-xl font-semibold tracking-tight text-card-foreground">
+                                                        {upcomingReservation.vehicleName}
+                                                    </h3>
+                                                    <p className="mt-1 text-sm text-muted-foreground">
+                                                        {upcomingReservation.licensePlate}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-lg border border-border bg-background px-3 py-2.5">
+                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm font-medium text-card-foreground">
+                                                    <span className="min-w-0 truncate">
+                                                        {upcomingReservation.origin}
+                                                    </span>
+
+                                                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 transition-colors group-hover:bg-background">
+                                                        <ArrowRight className="size-3.5 text-muted-foreground" />
+                                                    </div>
+
+                                                    <span className="min-w-0 truncate text-right">
+                                                        {upcomingReservation.destination}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                                        <Link
-                                            href={`/reservations/${upcomingReservation.id}`}
-                                            className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-                                        >
-                                            View detail
-                                        </Link>
-                                    </div>
-                                </div>
+                                </Link>
                             </div>
                         ) : (
                             <EmptyCard
@@ -189,15 +206,11 @@ export default function DashboardPage() {
 
                     <section
                         className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-4">
-                            <div>
-                                <h2 className="text-base font-semibold text-card-foreground">
-                                    Reservation waiting for completion
-                                </h2>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Finished reservations that still need a trip log.
-                                </p>
-                            </div>
+
+                        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-4">
+                            <h2 className="text-lg font-semibold tracking-tight text-card-foreground">
+                                Reservation waiting for completion
+                            </h2>
 
                             {missingTripLog ? (
                                 <span
@@ -210,29 +223,23 @@ export default function DashboardPage() {
                         {missingTripLog ? (
                             <Link
                                 href={`/reservations/${missingTripLog.reservationId}/trip-log`}
-                                className="flex flex-col gap-4 p-5 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                                className="border-y border-border px-4 py-3 transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm sm:flex sm:items-center sm:justify-between"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div
-                                        className="flex size-14 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
-                                        <BookOpenText className="size-6 text-muted-foreground"/>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                                        <BookOpenText className="size-5 text-muted-foreground" />
                                     </div>
 
                                     <div>
                                         <h3 className="text-sm font-semibold text-card-foreground">
                                             {missingTripLog.vehicleName}
                                         </h3>
-                                        <p className="mt-1 text-sm text-muted-foreground">
+                                        <p className="mt-0.5 text-xs text-muted-foreground">
                                             {formatSimpleDate(missingTripLog.date)} ·{" "}
                                             {missingTripLog.origin} → {missingTripLog.destination}
                                         </p>
                                     </div>
                                 </div>
-
-                                <span
-                                    className="inline-flex h-9 items-center justify-center rounded-lg border border-primary px-3 text-sm font-medium text-primary transition-colors hover:bg-muted">
-                                    Complete trip log
-                                </span>
                             </Link>
                         ) : (
                             <EmptyCard
@@ -246,13 +253,11 @@ export default function DashboardPage() {
                 <aside className="flex h-full flex-col lg:col-span-4">
                     <section
                         className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                        <div className="px-5 pt-4 pb-4 border-b border-border bg-muted/30">
+
+                        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-4">
                             <h2 className="text-lg font-semibold tracking-tight text-card-foreground">
                                 Recent trips
                             </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Latest completed trip log records.
-                            </p>
                         </div>
 
                         <div className="flex flex-1 flex-col">
@@ -262,7 +267,7 @@ export default function DashboardPage() {
                                         <Link
                                             key={trip.tripLogId}
                                             href={`/trip-logs/${trip.tripLogId}`}
-                                            className="block p-4 transition-colors hover:bg-muted/40"
+                                            className="block p-4 border-y border-border transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm"
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
@@ -312,29 +317,6 @@ export default function DashboardPage() {
     );
 }
 
-function InfoBlock({
-                       label,
-                       value,
-                       icon:
-                           Icon,
-                   }: {
-    label: string;
-    value: string;
-    icon: typeof CalendarDays;
-}) {
-    return (
-        <div>
-            <p className="mb-1.5 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground">
-                {label}
-            </p>
-            <div className="flex items-center gap-2 text-sm text-card-foreground">
-                <Icon className="size-4 shrink-0 text-muted-foreground"/>
-                <span className="min-w-0 truncate">{value}</span>
-            </div>
-        </div>
-    );
-}
-
 function EmptyCard({
                        title,
                        description,
@@ -367,14 +349,6 @@ function EmptyCard({
     );
 }
 
-function formatDate(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(value));
-}
-
 function formatTime(value: string) {
     return new Intl.DateTimeFormat("en-GB", {
         hour: "2-digit",
@@ -387,5 +361,53 @@ function formatSimpleDate(value: string) {
         day: "2-digit",
         month: "short",
         year: "numeric",
+    }).format(new Date(value));
+}
+
+function formatDay(value: string) {
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+    }).format(new Date(value));
+}
+
+function isSameCalendarDay(startValue: string, endValue: string) {
+    const start = new Date(startValue);
+    const end = new Date(endValue);
+
+    return (
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth() &&
+        start.getDate() === end.getDate()
+    );
+}
+
+function formatDateRangeMonth(startValue: string, endValue: string) {
+    const start = new Date(startValue);
+    const end = new Date(endValue);
+
+    const startMonth = new Intl.DateTimeFormat("en-GB", {
+        month: "short",
+    }).format(start);
+
+    const endMonth = new Intl.DateTimeFormat("en-GB", {
+        month: "short",
+    }).format(end);
+
+    if (
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth()
+    ) {
+        return startMonth;
+    }
+
+    return `${startMonth}–${endMonth}`;
+}
+
+function formatShortDateTime(value: string) {
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
     }).format(new Date(value));
 }

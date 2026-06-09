@@ -1,13 +1,14 @@
-import {IsIn, IsOptional, IsString, MinLength} from 'class-validator';
+import {IsIn, IsNotEmpty, IsOptional, IsString, MaxLength} from 'class-validator';
 
 export class UpdateMembershipDto {
     @IsString()
-    @MinLength(1)
+    @IsNotEmpty()
+    @MaxLength(255)
     @IsOptional()
     name?: string;
 
-    @IsString()
-    @IsOptional()
+
     @IsIn(['ADMIN', 'MEMBER'])
+    @IsOptional()
     role?: string;
 }
