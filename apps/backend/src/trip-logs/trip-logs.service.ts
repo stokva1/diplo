@@ -287,7 +287,6 @@ export class TripLogsService {
                 : null,
             note: tripLog.note,
             completedAt: tripLog.completedAt,
-            createdAt: tripLog.createdAt,
             updatedAt: tripLog.updatedAt,
         };
     }
@@ -451,10 +450,6 @@ export class TripLogsService {
                 return { completedAt: 'asc' as const };
             case '-completedAt':
                 return { completedAt: 'desc' as const };
-            case 'createdAt':
-                return { createdAt: 'asc' as const };
-            case '-createdAt':
-                return { createdAt: 'desc' as const };
             case 'startAt':
                 return {
                     reservation: {

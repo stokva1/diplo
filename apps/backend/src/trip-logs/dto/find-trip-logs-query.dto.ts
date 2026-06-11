@@ -16,7 +16,7 @@ export class FindTripLogsQueryDto {
     limit?: number;
 
     @IsOptional()
-    @IsIn(['completedAt', '-completedAt', 'createdAt', '-createdAt', 'startAt', '-startAt'])
+    @IsIn(['completedAt', '-completedAt', 'startAt', '-startAt'])
     sort?: string;
 
     @IsOptional()

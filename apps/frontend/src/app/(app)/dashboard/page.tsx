@@ -152,7 +152,7 @@ export default function DashboardPage() {
                                                 </div>
                                             )}
 
-                                            <p className="mt-1.5 max-w-36 text-xs leading-4 text-muted-foreground">
+                                            <p className="mt-1.5 max-w-36 truncate text-xs leading-4 text-muted-foreground">
                                                 {upcomingReservation.purpose}
                                             </p>
                                         </div>
@@ -214,7 +214,7 @@ export default function DashboardPage() {
 
                             {missingTripLog ? (
                                 <span
-                                    className="inline-flex items-center rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">
+                                    className="inline-flex items-center rounded-full border border-destructive/40 bg-destructive/15 px-2.5 py-0.5 text-xs font-medium text-destructive">
                                     Requires action
                                 </span>
                             ) : null}

@@ -43,6 +43,10 @@ const MAX_ORIGIN_LENGTH = 255;
 const MAX_DESTINATION_LENGTH = 255;
 const MAX_PURPOSE_LENGTH = 255;
 
+function getTodayDateValue() {
+    return new Date().toISOString().slice(0, 10);
+}
+
 export default function NewReservationPage() {
     const router = useRouter();
 
@@ -54,10 +58,12 @@ export default function NewReservationPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const today = getTodayDateValue();
+
     const [form, setForm] = useState({
-        startDate: "",
+        startDate: today,
         startTime: "08:00",
-        endDate: "",
+        endDate: today,
         endTime: "16:00",
         origin: "Praha",
         destination: "",
@@ -74,10 +80,14 @@ export default function NewReservationPage() {
         [form.endDate, form.startDate, form.endTime],
     );
 
+    const startsInPast = Boolean(startAt && new Date(startAt) < new Date());
+
     const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId);
 
     const canContinue =
-        (step === 1 && Boolean(startAt && endAt && new Date(endAt) > new Date(startAt))) ||
+        (step === 1 &&
+            Boolean(startAt && endAt && new Date(endAt) > new Date(startAt)) &&
+            !startsInPast) ||
         (step === 2 && Boolean(selectedVehicleId)) ||
         (step === 3 && Boolean(form.origin && form.destination && form.purpose)) ||
         step === 4;
@@ -145,6 +155,98 @@ export default function NewReservationPage() {
         setForm(nextForm);
         setSelectedVehicleId(null);
         setVehicles([]);
+    }
+
+    function handleStartDateChange(value: string) {
+        handleDateTimeChange({
+            ...form,
+            startDate: value,
+        });
+    }
+
+    function handleStartDateBlur() {
+        const nextStartDate = normalizeDateValue(form.startDate, today);
+
+        let nextEndDate = form.endDate || nextStartDate;
+        let nextEndTime = form.endTime;
+
+        if (isDateBefore(nextEndDate, nextStartDate)) {
+            nextEndDate = nextStartDate;
+        }
+
+        if (
+            nextEndDate === nextStartDate &&
+            isTimeBeforeOrEqual(nextEndTime, form.startTime)
+        ) {
+            nextEndTime = getNextEndTime(form.startTime);
+        }
+
+        handleDateTimeChange({
+            ...form,
+            startDate: nextStartDate,
+            endDate: nextEndDate,
+            endTime: nextEndTime,
+        });
+    }
+
+    function handleEndDateChange(value: string) {
+        handleDateTimeChange({
+            ...form,
+            endDate: value,
+        });
+    }
+
+    function handleEndDateBlur() {
+        const normalizedDate = normalizeDateValue(form.endDate || form.startDate, today);
+
+        const nextEndDate = isDateBefore(normalizedDate, form.startDate)
+            ? form.startDate
+            : normalizedDate;
+
+        let nextEndTime = form.endTime;
+
+        if (
+            nextEndDate === form.startDate &&
+            isTimeBeforeOrEqual(nextEndTime, form.startTime)
+        ) {
+            nextEndTime = getNextEndTime(form.startTime);
+        }
+
+        handleDateTimeChange({
+            ...form,
+            endDate: nextEndDate,
+            endTime: nextEndTime,
+        });
+    }
+
+    function handleStartTimeChange(value: string) {
+        let nextEndTime = form.endTime;
+
+        if (
+            (form.endDate || form.startDate) === form.startDate &&
+            isTimeBeforeOrEqual(nextEndTime, value)
+        ) {
+            nextEndTime = getNextEndTime(value);
+        }
+
+        handleDateTimeChange({
+            ...form,
+            startTime: value,
+            endTime: nextEndTime,
+        });
+    }
+
+    function handleEndTimeChange(value: string) {
+        const nextEndTime =
+            (form.endDate || form.startDate) === form.startDate &&
+            isTimeBeforeOrEqual(value, form.startTime)
+                ? getNextEndTime(form.startTime)
+                : value;
+
+        handleDateTimeChange({
+            ...form,
+            endTime: nextEndTime,
+        });
     }
 
     async function handleSubmit() {
@@ -267,9 +369,6 @@ export default function NewReservationPage() {
                             <h2 className="text-lg font-semibold tracking-tight text-card-foreground">
                                 Select date and time
                             </h2>
-                            <p className="mt-0.5 text-sm text-muted-foreground">
-                                Vehicles will be filtered by availability in this time window.
-                            </p>
                         </div>
                     </div>
 
@@ -277,14 +376,10 @@ export default function NewReservationPage() {
                         <Field label="Start date">
                             <input
                                 type="date"
+                                min={today}
                                 value={form.startDate}
-                                onChange={(event) =>
-                                    handleDateTimeChange({
-                                        ...form,
-                                        startDate: event.target.value,
-                                        endDate: form.endDate || event.target.value,
-                                    })
-                                }
+                                onChange={(event) => handleStartDateChange(event.target.value)}
+                                onBlur={handleStartDateBlur}
                                 className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
                             />
                         </Field>
@@ -293,12 +388,7 @@ export default function NewReservationPage() {
                             <input
                                 type="time"
                                 value={form.startTime}
-                                onChange={(event) =>
-                                    handleDateTimeChange({
-                                        ...form,
-                                        startTime: event.target.value,
-                                    })
-                                }
+                                onChange={(event) => handleStartTimeChange(event.target.value)}
                                 className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
                             />
                         </Field>
@@ -306,13 +396,10 @@ export default function NewReservationPage() {
                         <Field label="End date">
                             <input
                                 type="date"
+                                min={form.startDate || today}
                                 value={form.endDate || form.startDate}
-                                onChange={(event) =>
-                                    handleDateTimeChange({
-                                        ...form,
-                                        endDate: event.target.value,
-                                    })
-                                }
+                                onChange={(event) => handleEndDateChange(event.target.value)}
+                                onBlur={handleEndDateBlur}
                                 className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
                             />
                         </Field>
@@ -321,18 +408,18 @@ export default function NewReservationPage() {
                             <input
                                 type="time"
                                 value={form.endTime}
-                                onChange={(event) =>
-                                    handleDateTimeChange({
-                                        ...form,
-                                        endTime: event.target.value,
-                                    })
-                                }
+                                onChange={(event) => handleEndTimeChange(event.target.value)}
                                 className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
                             />
                         </Field>
                     </div>
 
-                    {startAt && endAt && new Date(endAt) <= new Date(startAt) ? (
+                    {startsInPast ? (
+                        <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
+                            <CircleAlert className="mt-0.5 size-4 shrink-0"/>
+                            Reservation cannot start in the past.
+                        </div>
+                    ) : startAt && endAt && new Date(endAt) <= new Date(startAt) ? (
                         <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
                             <CircleAlert className="mt-0.5 size-4 shrink-0"/>
                             End date and time must be after start date and time.
@@ -580,9 +667,11 @@ function Field({
 
 function SummaryRow({label, value}: { label: string; value?: string | null }) {
     return (
-        <div className="flex justify-between gap-4 py-3 text-sm">
+        <div className="grid gap-1 py-3 text-sm sm:grid-cols-[120px_minmax(0,1fr)] sm:gap-4">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="text-right font-medium text-card-foreground">{value || "—"}</dd>
+            <dd className="min-w-0 break-words font-medium text-card-foreground sm:text-right">
+                {value || "—"}
+            </dd>
         </div>
     );
 }
@@ -640,4 +729,36 @@ function isSameCalendarDay(startValue: string, endValue: string) {
         start.getMonth() === end.getMonth() &&
         start.getDate() === end.getDate()
     );
+}
+
+function normalizeDateValue(value: string, minDate: string) {
+    if (!value) {
+        return minDate;
+    }
+
+    return isDateBefore(value, minDate) ? minDate : value;
+}
+
+function isDateBefore(value: string, compareTo: string) {
+    return value < compareTo;
+}
+
+function isTimeBeforeOrEqual(value: string, compareTo: string) {
+    return value <= compareTo;
+}
+
+function getNextEndTime(startTime: string) {
+    const [hours, minutes] = startTime.split(":").map(Number);
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return "23:59";
+    }
+
+    const nextHour = hours + 1;
+
+    if (nextHour >= 24) {
+        return "23:59";
+    }
+
+    return `${String(nextHour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }

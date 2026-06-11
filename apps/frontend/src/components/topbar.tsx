@@ -1,13 +1,16 @@
 "use client";
 
-import { Bell, LogOut, Menu, Search, User } from "lucide-react";
+import {LogOut, Menu, Search, User} from "lucide-react";
 import type { Role } from "@/lib/types";
+import {useState} from "react";
 
 const roleLabels: Record<Role, string> = {
     MEMBER: "Member",
     VEHICLE_MANAGER: "Vehicle manager",
     ADMIN: "Administrator",
 };
+
+type Language = "en" | "cs";
 
 export function Topbar({
                            userName,
@@ -21,6 +24,7 @@ export function Topbar({
     onLogout: () => void;
 }) {
     const initials = getInitials(userName);
+    const [language, setLanguage] = useState<Language>("en");
 
     return (
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur md:px-6">
@@ -43,11 +47,12 @@ export function Topbar({
             <div className="ml-auto flex items-center gap-2">
                 <button
                     type="button"
-                    className="relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label="Notifications"
+                    onClick={() => setLanguage((current) => (current === "en" ? "cs" : "en"))}
+                    className="flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm transition-transform hover:scale-105"
+                    aria-label={language === "en" ? "Switch to Czech" : "Switch to English"}
+                    title={language === "en" ? "Switch to Czech" : "Switch to English"}
                 >
-                    <Bell className="size-5" />
-                    <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive" />
+                    {language === "en" ? <UkFlag/> : <CzFlag/>}
                 </button>
 
                 <div className="group relative">
@@ -76,7 +81,7 @@ export function Topbar({
 
                         <button
                             type="button"
-                            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            className="flex w-full items-center gap-2 cursor-pointer rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <User className="size-4" />
                             Profile
@@ -85,7 +90,7 @@ export function Topbar({
                         <button
                             type="button"
                             onClick={onLogout}
-                            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            className="flex w-full items-center gap-2 cursor-pointer rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <LogOut className="size-4" />
                             Sign out
@@ -108,4 +113,54 @@ function getInitials(name?: string) {
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase())
         .join("");
+}
+
+function UkFlag() {
+    return (
+        <svg
+            viewBox="0 0 60 60"
+            className="size-full"
+            aria-hidden="true"
+            focusable="false"
+        >
+            <defs>
+                <clipPath id="uk-flag-circle">
+                    <circle cx="30" cy="30" r="30"/>
+                </clipPath>
+            </defs>
+
+            <g clipPath="url(#uk-flag-circle)">
+                <rect width="60" height="60" fill="#012169"/>
+
+                <path d="M0 0L60 60M60 0L0 60" stroke="#FFFFFF" strokeWidth="12"/>
+                <path d="M0 0L60 60M60 0L0 60" stroke="#C8102E" strokeWidth="6"/>
+
+                <path d="M30 0V60M0 30H60" stroke="#FFFFFF" strokeWidth="20"/>
+                <path d="M30 0V60M0 30H60" stroke="#C8102E" strokeWidth="10"/>
+            </g>
+        </svg>
+    );
+}
+
+function CzFlag() {
+    return (
+        <svg
+            viewBox="0 0 60 60"
+            className="size-full"
+            aria-hidden="true"
+            focusable="false"
+        >
+            <defs>
+                <clipPath id="cz-flag-circle">
+                    <circle cx="30" cy="30" r="30"/>
+                </clipPath>
+            </defs>
+
+            <g clipPath="url(#cz-flag-circle)">
+                <rect width="60" height="30" y="0" fill="#FFFFFF"/>
+                <rect width="60" height="30" y="30" fill="#D7141A"/>
+                <path d="M0 0L36 30L0 60Z" fill="#11457E"/>
+            </g>
+        </svg>
+    );
 }

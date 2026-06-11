@@ -3,8 +3,10 @@
 import Link from "next/link";
 import {useEffect, useState} from "react";
 import {
+    ArrowDownAZ,
+    ArrowUpAZ,
     CalendarPlus,
-    Car,
+    Car, Check, ChevronDown,
     MapPin,
     TriangleAlert,
 } from "lucide-react";
@@ -12,6 +14,15 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
+
+type SortField = "startAt" | "endAt" | "createdAt";
+type SortDirection = "asc" | "desc";
+
+const sortFieldLabels: Record<SortField, string> = {
+    startAt: "Start date",
+    endAt: "End date",
+    createdAt: "Created date",
+};
 
 type ReservationListItem = {
     id: string;
@@ -22,6 +33,7 @@ type ReservationListItem = {
     };
     startAt: string;
     endAt: string;
+    createdAt?: string;
     origin: string;
     destination: string;
     purpose: string;
@@ -42,11 +54,16 @@ const filters: { key: "ALL" | ReservationStatus; label: string }[] = [
     {key: "CANCELLED", label: "Cancelled"},
 ];
 
+
+
 export default function ReservationsPage() {
     const [reservations, setReservations] = useState<ReservationListItem[]>([]);
     const [filter, setFilter] = useState<"ALL" | ReservationStatus>("ALL");
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [sortOpen, setSortOpen] = useState(false);
+    const [sortField, setSortField] = useState<SortField>("startAt");
+    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
     useEffect(() => {
         async function loadReservations() {
@@ -77,10 +94,21 @@ export default function ReservationsPage() {
         loadReservations();
     }, []);
 
-    const list =
+    const filteredReservations =
         filter === "ALL"
             ? reservations
             : reservations.filter((reservation) => reservation.status === filter);
+
+    const list = [...filteredReservations].sort((a, b) => {
+        const aValue = getSortValue(a, sortField);
+        const bValue = getSortValue(b, sortField);
+
+        if (sortDirection === "asc") {
+            return aValue - bValue;
+        }
+
+        return bValue - aValue;
+    });
 
     return (
         <div className="mx-auto max-w-5xl">
@@ -96,58 +124,139 @@ export default function ReservationsPage() {
 
                 <Link
                     href="/reservations/new"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
                 >
                     <CalendarPlus className="size-4"/>
                     New reservation
                 </Link>
             </div>
 
-            <div className="mb-4 rounded-lg border border-border bg-muted/40 p-1">
-                <div className="relative grid grid-cols-4">
-                    <div
-                        className={cn(
-                            "absolute inset-y-0 left-0 w-1/4 rounded-md bg-background shadow-sm transition-transform duration-300 ease-out",
-                            filter === "ALL" && "translate-x-0",
-                            filter === "ACTIVE" && "translate-x-full",
-                            filter === "FINISHED" && "translate-x-[200%]",
-                            filter === "CANCELLED" && "translate-x-[300%]",
-                        )}
-                    />
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex-1 rounded-lg border border-border bg-muted/40 p-1">
+                    <div className="relative grid grid-cols-4">
+                        <div
+                            className={cn(
+                                "absolute inset-y-0 left-0 w-1/4 rounded-md bg-background shadow-sm transition-transform duration-300 ease-out",
+                                filter === "ALL" && "translate-x-0",
+                                filter === "ACTIVE" && "translate-x-full",
+                                filter === "FINISHED" && "translate-x-[200%]",
+                                filter === "CANCELLED" && "translate-x-[300%]",
+                            )}
+                        />
 
-                    {filters.map((item) => {
-                        const count =
-                            item.key === "ALL"
-                                ? reservations.length
-                                : reservations.filter((reservation) => reservation.status === item.key)
-                                    .length;
+                        {filters.map((item) => {
+                            const count =
+                                item.key === "ALL"
+                                    ? reservations.length
+                                    : reservations.filter((reservation) => reservation.status === item.key)
+                                        .length;
 
-                        return (
-                            <button
-                                key={item.key}
-                                type="button"
-                                onClick={() => setFilter(item.key)}
-                                className={cn(
-                                    "relative z-10 flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200",
-                                    filter === item.key
-                                        ? "text-foreground"
-                                        : "text-muted-foreground hover:text-foreground",
-                                )}
-                            >
-                                {item.label}
-                                <span
+                            return (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    onClick={() => setFilter(item.key)}
                                     className={cn(
-                                        "text-xs transition-colors duration-200",
+                                        "relative z-10 flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200",
                                         filter === item.key
-                                            ? "text-muted-foreground"
-                                            : "text-muted-foreground/80",
+                                            ? "text-foreground"
+                                            : "text-muted-foreground hover:text-foreground",
                                     )}
                                 >
-                                    {count}
-                                </span>
-                            </button>
-                        );
-                    })}
+                                    {item.label}
+                                    <span
+                                        className={cn(
+                                            "text-xs transition-colors duration-200",
+                                            filter === item.key
+                                                ? "text-muted-foreground"
+                                                : "text-muted-foreground/80",
+                                        )}
+                                    >
+                            {count}
+                        </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setSortOpen((value) => !value)}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted sm:w-auto"
+                    >
+                        {sortDirection === "asc" ? (
+                            <ArrowUpAZ className="size-4 text-muted-foreground"/>
+                        ) : (
+                            <ArrowDownAZ className="size-4 text-muted-foreground"/>
+                        )}
+                        Sort
+                        <ChevronDown className="size-4 text-muted-foreground"/>
+                    </button>
+
+                    {sortOpen ? (
+                        <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                            <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                Sort by
+                            </div>
+
+                            <div className="space-y-1">
+                                {(["startAt", "endAt", "createdAt"] as SortField[]).map((field) => (
+                                    <button
+                                        key={field}
+                                        type="button"
+                                        onClick={() => setSortField(field)}
+                                        className={cn(
+                                            "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
+                                            sortField === field
+                                                ? "text-foreground"
+                                                : "text-muted-foreground",
+                                        )}
+                                    >
+                                        {sortFieldLabels[field]}
+                                        {sortField === field ? <Check className="size-4"/> : null}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="my-2 h-px bg-border"/>
+
+                            <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                Direction
+                            </div>
+
+                            <div className="space-y-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setSortDirection("asc")}
+                                    className={cn(
+                                        "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
+                                        sortDirection === "asc"
+                                            ? "text-foreground"
+                                            : "text-muted-foreground",
+                                    )}
+                                >
+                                    Ascending
+                                    {sortDirection === "asc" ? <Check className="size-4"/> : null}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setSortDirection("desc")}
+                                    className={cn(
+                                        "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
+                                        sortDirection === "desc"
+                                            ? "text-foreground"
+                                            : "text-muted-foreground",
+                                    )}
+                                >
+                                    Descending
+                                    {sortDirection === "desc" ? <Check className="size-4"/> : null}
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
@@ -322,4 +431,12 @@ function isSameCalendarDay(startValue: string, endValue: string) {
         start.getMonth() === end.getMonth() &&
         start.getDate() === end.getDate()
     );
+}
+
+function getSortValue(reservation: ReservationListItem, field: SortField) {
+    if (field === "createdAt") {
+        return new Date(reservation.createdAt ?? reservation.startAt).getTime();
+    }
+
+    return new Date(reservation[field]).getTime();
 }

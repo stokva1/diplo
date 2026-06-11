@@ -10,7 +10,6 @@ import {
     Users,
     Settings,
     House,
-    Wrench,
     type LucideIcon,
 } from "lucide-react";
 import {cn} from "@/lib/utils";
@@ -50,38 +49,61 @@ const sections: NavSection[] = [
                 icon: BookOpenText,
                 roles: ["MEMBER", "VEHICLE_MANAGER", "ADMIN"],
             },
+        ],
+    },
+    {
+        title: "Vehicle management",
+        items: [
             {
-                href: "/reports",
-                label: "Reports",
+                href: "/manage/vehicles",
+                label: "Managed vehicles",
+                icon: Car,
+                roles: ["VEHICLE_MANAGER", "ADMIN"],
+            },
+            {
+                href: "/issues",
+                label: "Issues",
                 icon: TriangleAlert,
-                roles: ["MEMBER", "VEHICLE_MANAGER", "ADMIN"],
+                roles: ["VEHICLE_MANAGER", "ADMIN"],
             },
         ],
     },
     {
-        title: "Management",
+        title: "Administration",
         items: [
             {
-                href: "/manage/vehicles",
-                label: "Vehicle management",
-                icon: Wrench,
-                roles: ["VEHICLE_MANAGER", "ADMIN"],
-            },
-            {
                 href: "/admin/vehicles",
-                label: "Vehicles",
+                label: "All vehicles",
                 icon: Car,
                 roles: ["ADMIN"],
             },
             {
+                href: "/admin/reservations",
+                label: "All reservations",
+                icon: CalendarDays,
+                roles: ["ADMIN"],
+            },
+            {
+                href: "/admin/trip-logs",
+                label: "All trip logs",
+                icon: BookOpenText,
+                roles: ["ADMIN"],
+            },
+            {
+                href: "/admin/issues",
+                label: "All issues",
+                icon: TriangleAlert,
+                roles: ["ADMIN"],
+            },
+            {
                 href: "/admin/users",
-                label: "Users",
+                label: "Members",
                 icon: Users,
                 roles: ["ADMIN"],
             },
             {
                 href: "/admin/settings",
-                label: "Settings",
+                label: "Organization settings",
                 icon: Settings,
                 roles: ["ADMIN"],
             },

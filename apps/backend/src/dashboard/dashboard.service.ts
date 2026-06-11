@@ -132,39 +132,40 @@ export class DashboardService {
                     orderBy: {
                         startAt: 'asc',
                     },
-                    take: 5,
-                    include: {
-                        membership: {
-                            include: {
-                                user: true,
-                            },
-                        },
+                    take: 1,
+                    select: {
+                        startAt: true,
                     },
                 },
                 serviceEvents: {
                     where: {
                         status: 'ACTIVE',
-                        endAt: {
+                        startAt: {
                             gt: now,
                         },
                     },
                     orderBy: {
                         startAt: 'asc',
                     },
-                    take: 5,
+                    take: 1,
+                    select: {
+                        startAt: true,
+                    },
                 },
-                vehicleIssues: {
-                    where: {
-                        status: 'OPEN',
-                    },
-                    orderBy: {
-                        createdAt: 'desc',
-                    },
-                    take: 5,
-                    include: {
-                        reportedByMembership: {
-                            include: {
-                                user: true,
+                _count: {
+                    select: {
+                        vehicleIssues: {
+                            where: {
+                                status: 'OPEN',
+                            },
+                        },
+                        reservations: {
+                            where: {
+                                status: 'ACTIVE',
+                                endAt: {
+                                    lt: now,
+                                },
+                                tripLog: null,
                             },
                         },
                     },
@@ -175,39 +176,6 @@ export class DashboardService {
             },
         });
 
-        const vehicleIds = vehicles.map((vehicle) => vehicle.id);
-
-        const missingTripLogReservations = await this.prisma.reservation.findMany({
-            where: {
-                vehicleId: {
-                    in: vehicleIds,
-                },
-                status: 'ACTIVE',
-                endAt: {
-                    lt: now,
-                },
-                tripLog: null,
-            },
-            include: {
-                membership: {
-                    include: {
-                        user: true,
-                    },
-                },
-            },
-            orderBy: {
-                endAt: 'desc',
-            },
-        });
-
-        const missingTripLogsByVehicleId = new Map<string, typeof missingTripLogReservations>();
-
-        for (const reservation of missingTripLogReservations) {
-            const existing = missingTripLogsByVehicleId.get(reservation.vehicleId) ?? [];
-            existing.push(reservation);
-            missingTripLogsByVehicleId.set(reservation.vehicleId, existing);
-        }
-
         return {
             vehicles: vehicles.map((vehicle) => ({
                 id: vehicle.id,
@@ -216,51 +184,10 @@ export class DashboardService {
                 brand: vehicle.brand,
                 model: vehicle.model,
                 currentOdometerKm: vehicle.currentOdometerKm,
-
-                upcomingReservations: vehicle.reservations.map((reservation) => ({
-                    id: reservation.id,
-                    member: {
-                        id: reservation.membership.id,
-                        name: reservation.membership.user.name,
-                    },
-                    startAt: reservation.startAt,
-                    endAt: reservation.endAt,
-                    origin: reservation.origin,
-                    destination: reservation.destination,
-                    purpose: reservation.purpose,
-                })),
-
-                missingTripLogs: (missingTripLogsByVehicleId.get(vehicle.id) ?? []).map(
-                    (reservation) => ({
-                        reservationId: reservation.id,
-                        member: {
-                            id: reservation.membership.id,
-                            name: reservation.membership.user.name,
-                        },
-                        date: reservation.endAt.toISOString().slice(0, 10),
-                        origin: reservation.origin,
-                        destination: reservation.destination,
-                        endedAt: reservation.endAt,
-                    }),
-                ),
-
-                serviceEvents: vehicle.serviceEvents.map((event) => ({
-                    id: event.id,
-                    title: event.title,
-                    startAt: event.startAt,
-                    endAt: event.endAt,
-                    cost: event.cost,
-                })),
-
-                openIssues: vehicle.vehicleIssues.map((issue) => ({
-                    id: issue.id,
-                    reportedBy: {
-                        id: issue.reportedByMembership.id,
-                        name: issue.reportedByMembership.user.name,
-                    },
-                    description: issue.description,
-                    createdAt: issue.createdAt,
-                })),
+                nextReservationAt: vehicle.reservations[0]?.startAt ?? null,
+                nextServiceAt: vehicle.serviceEvents[0]?.startAt ?? null,
+                openIssuesCount: vehicle._count.vehicleIssues,
+                missingTripLogsCount: vehicle._count.reservations,
             })),
         };
     }
