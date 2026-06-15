@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
+import {PageHeader} from "@/components/PageHeader";
+import {EmptyState} from "@/components/EmptyState";
 
 type TripLogListItem = {
     id: string;
@@ -203,47 +205,36 @@ export default function TripLogsPage() {
     }
 
     return (
-        <div className="mx-auto max-w-5xl">
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto max-w-7xl">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                        Trip logs
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Completed trips with recorded mileage and refueling.
-                    </p>
+                    <PageHeader
+                        title="Trip logs"
+                        description="Completed trips with recorded mileage and refueling."
+                    />
                 </div>
 
-                <button
-                    type="button"
-                    onClick={handleExport}
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
-                >
-                    <Download className="size-4"/>
-                    Export
-                </button>
-            </div>
-
-            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <StatCard
-                    label="Trips logged"
-                    value={String(logs.length)}
-                    icon={BookOpenText}
-                />
-                <StatCard
-                    label="Total distance"
-                    value={formatKm(totalDistanceKm)}
-                    icon={Gauge}
-                />
-                <StatCard
-                    label="Fuel expenses"
-                    value={formatCurrency(totalRefuelingCost)}
-                    icon={Fuel}
-                />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-[30rem]">
+                    <StatCard
+                        label="Trips logged"
+                        value={String(logs.length)}
+                        icon={BookOpenText}
+                    />
+                    <StatCard
+                        label="Total distance"
+                        value={formatKm(totalDistanceKm)}
+                        icon={Gauge}
+                    />
+                    <StatCard
+                        label="Fuel expenses"
+                        value={formatCurrency(totalRefuelingCost)}
+                        icon={Fuel}
+                    />
+                </div>
             </div>
 
             <div className="mb-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-                <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto] md:items-end">
+                <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto_auto] md:items-end">
                     <Field label="From">
                         <input
                             type="date"
@@ -264,22 +255,22 @@ export default function TripLogsPage() {
                     </Field>
 
                     <div className="relative">
-    <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Refueling
-    </span>
+                        <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            Refueling
+                        </span>
 
                         <button
                             type="button"
                             onClick={() => setRefueledOpen((value) => !value)}
                             className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
-        <span>
-            {refueled === "ALL"
-                ? "All"
-                : refueled === "true"
-                    ? "Refueled"
-                    : "Not refueled"}
-        </span>
+                            <span>
+                                {refueled === "ALL"
+                                    ? "All"
+                                    : refueled === "true"
+                                        ? "Refueled"
+                                        : "Not refueled"}
+                            </span>
                             <ChevronDown className="size-4 text-muted-foreground"/>
                         </button>
 
@@ -390,6 +381,14 @@ export default function TripLogsPage() {
                             </div>
                         ) : null}
                     </div>
+                    <button
+                        type="button"
+                        onClick={handleExport}
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90 md:w-auto"
+                    >
+                        <Download className="size-4"/>
+                        Export
+                    </button>
                 </div>
             </div>
 
@@ -464,9 +463,9 @@ export default function TripLogsPage() {
                         ))}
 
                         {logs.length === 0 ? (
-                            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                                No trip logs found.
-                            </div>
+                            <EmptyState
+                                description="No trip logs found."
+                            />
                         ) : null}
                     </div>
                 </div>
@@ -502,19 +501,17 @@ function StatCard({
     icon: React.ElementType;
 }) {
     return (
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-                <div>
-                    <p className="text-sm text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-2xl font-semibold tracking-tight text-card-foreground">
-                        {value}
-                    </p>
-                </div>
-
-                <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
-                    <Icon className="size-5 text-muted-foreground"/>
-                </div>
+                <p className="text-xs font-medium text-muted-foreground">
+                    {label}
+                </p>
+                <Icon className="size-4 shrink-0 text-muted-foreground"/>
             </div>
+
+            <p className="mt-1 truncate text-2xl font-semibold tracking-tight text-card-foreground">
+                {value}
+            </p>
         </div>
     );
 }

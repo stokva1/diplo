@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
+import {EmptyState} from "@/components/EmptyState";
 
 type VehicleStatus = "ACTIVE" | "UNAVAILABLE" | "ARCHIVED";
 
@@ -315,7 +316,7 @@ export default function VehicleDetailPage() {
                             {issues.map((issue) => (
                                 <Link
                                     key={issue.id}
-                                    href={`/issues/${issue.id}`}
+                                    href={`/apps/frontend/src/app/(app)/manage/issues/${issue.id}`}
                                     className="block px-5 py-4 transition-colors hover:bg-muted/40"
                                 >
                                     <div className="flex items-start justify-between gap-3">
@@ -332,7 +333,11 @@ export default function VehicleDetailPage() {
                             ))}
                         </div>
                     ) : (
-                        <EmptyState text="No issues reported for this vehicle."/>
+                        <div className="p-5">
+                            <EmptyState
+                                description="No reported issues yet."
+                            />
+                        </div>
                     )}
                 </Panel>
 
@@ -368,7 +373,9 @@ export default function VehicleDetailPage() {
                             ))}
                         </div>
                     ) : (
-                        <EmptyState text="No service events recorded."/>
+                        <div className="p-5">
+                            <EmptyState description="No service events recorded."/>
+                        </div>
                     )}
                 </Panel>
 
@@ -404,7 +411,9 @@ export default function VehicleDetailPage() {
                             ))}
                         </div>
                     ) : (
-                        <EmptyState text="No reservations for this vehicle."/>
+                        <div className="p-5">
+                            <EmptyState description="No reservations for this vehicle."/>
+                        </div>
                     )}
                 </Panel>
             </div>
@@ -526,7 +535,7 @@ function Panel({
     children: React.ReactNode;
 }) {
     return (
-        <section className="flex min-h-80 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <section className="flex min-h-55 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
                 <div className="min-w-0">
                     <h2 className="text-base font-semibold text-card-foreground">
@@ -545,22 +554,10 @@ function Panel({
                 </Link>
             </div>
 
-            <div className="flex flex-1 flex-col">
+            <div className="max-h-[22rem] flex-1 overflow-y-auto">
                 {children}
             </div>
         </section>
-    );
-}
-
-function EmptyState({text}: { text: string }) {
-    return (
-        <div className="flex flex-1 p-5">
-            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                    {text}
-                </p>
-            </div>
-        </div>
     );
 }
 

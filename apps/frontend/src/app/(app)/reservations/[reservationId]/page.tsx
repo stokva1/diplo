@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
+import {EmptyState} from "@/components/EmptyState";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
 
@@ -151,7 +152,7 @@ export default function ReservationDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-7xl">
                 <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
                     Loading reservation...
                 </div>
@@ -161,7 +162,7 @@ export default function ReservationDetailPage() {
 
     if (error && !reservation) {
         return (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-7xl">
                 <button
                     type="button"
                     onClick={() => router.back()}
@@ -186,7 +187,7 @@ export default function ReservationDetailPage() {
     const canReportIssue = reservation.status !== "CANCELLED";
 
     return (
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-7xl">
             <button
                 type="button"
                 onClick={() => router.back()}
@@ -198,7 +199,7 @@ export default function ReservationDetailPage() {
 
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                    <h1 className="text-3xl font-semibold tracking-tight text-foreground">
                         Reservation detail
                     </h1>
 
@@ -350,12 +351,10 @@ export default function ReservationDetailPage() {
                         ) : (
                             <div className="flex flex-1 p-5">
                                 <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center">
-                                    <p className="text-sm font-medium text-card-foreground">
-                                        No trip log yet
-                                    </p>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        The trip log can be completed after the reservation ends.
-                                    </p>
+                                    <EmptyState
+                                        title="No trip log yet"
+                                        description="The trip log can be completed after the reservation ends."
+                                    />
                                 </div>
                             </div>
                         )}
@@ -401,12 +400,10 @@ export default function ReservationDetailPage() {
                         ) : (
                             <div className="flex flex-1 p-5">
                                 <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center">
-                                    <p className="text-sm font-medium text-card-foreground">
-                                        No issues reported
-                                    </p>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Any vehicle problems connected to this trip will appear here.
-                                    </p>
+                                    <EmptyState
+                                        title="No issues reported"
+                                        description="Any vehicle problems connected to this trip will appear here."
+                                    />
                                 </div>
                             </div>
                         )}

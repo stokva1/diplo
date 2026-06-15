@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
+import {PageHeader} from "@/components/PageHeader";
+import {EmptyState} from "@/components/EmptyState";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
 
@@ -111,15 +113,13 @@ export default function ReservationsPage() {
     });
 
     return (
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                        Reservations
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Every vehicle booking you have made.
-                    </p>
+                    <PageHeader
+                        title="Reservations"
+                        description="Every vehicle booking you have made."
+                    />
                 </div>
 
                 <Link
@@ -326,9 +326,9 @@ export default function ReservationsPage() {
                     ))}
 
                     {list.length === 0 ? (
-                        <div className="rounded-xl border border-border bg-card px-5 py-12 text-center text-sm text-muted-foreground shadow-sm">
-                            No reservations in this category.
-                        </div>
+                        <EmptyState
+                            description="No reservations in this category."
+                        />
                     ) : null}
                 </div>
             )}

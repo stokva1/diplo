@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import type {DashboardResponse} from "@/types/api";
+import {PageHeader} from "@/components/PageHeader";
+import {EmptyState} from "@/components/EmptyState";
 
 export default function DashboardPage() {
     const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -71,12 +73,10 @@ export default function DashboardPage() {
         <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col gap-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-                        Welcome back,
-                    </h1>
-                    <p className="mt-1 text-base text-muted-foreground">
-                        Here is summary of what is happening across the fleet.
-                    </p>
+                    <PageHeader
+                        title="Welcome back,"
+                        description="Here is summary of what is happening across the fleet."
+                    />
                 </div>
             </div>
 
@@ -146,7 +146,8 @@ export default function DashboardPage() {
                                                     {formatTime(upcomingReservation.startAt)}–{formatTime(upcomingReservation.endAt)}
                                                 </p>
                                             ) : (
-                                                <div className="mt-2 text-sm font-medium leading-5 text-card-foreground">
+                                                <div
+                                                    className="mt-2 text-sm font-medium leading-5 text-card-foreground">
                                                     <p>{formatShortDateTime(upcomingReservation.startAt)} –</p>
                                                     <p>{formatShortDateTime(upcomingReservation.endAt)}</p>
                                                 </div>
@@ -161,8 +162,9 @@ export default function DashboardPage() {
 
                                         <div className="flex min-w-0 flex-1 flex-col gap-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-border bg-background">
-                                                    <Car className="size-7 text-muted-foreground" />
+                                                <div
+                                                    className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-border bg-background">
+                                                    <Car className="size-7 text-muted-foreground"/>
                                                 </div>
 
                                                 <div className="min-w-0">
@@ -176,13 +178,15 @@ export default function DashboardPage() {
                                             </div>
 
                                             <div className="rounded-lg border border-border bg-background px-3 py-2.5">
-                                                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm font-medium text-card-foreground">
+                                                <div
+                                                    className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm font-medium text-card-foreground">
                                                     <span className="min-w-0 truncate">
                                                         {upcomingReservation.origin}
                                                     </span>
 
-                                                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 transition-colors group-hover:bg-background">
-                                                        <ArrowRight className="size-3.5 text-muted-foreground" />
+                                                    <div
+                                                        className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 transition-colors group-hover:bg-background">
+                                                        <ArrowRight className="size-3.5 text-muted-foreground"/>
                                                     </div>
 
                                                     <span className="min-w-0 truncate text-right">
@@ -195,12 +199,20 @@ export default function DashboardPage() {
                                 </Link>
                             </div>
                         ) : (
-                            <EmptyCard
-                                title="No upcoming reservation"
-                                description="Create a new reservation when you need a company vehicle."
-                                actionHref="/reservations/new"
-                                actionLabel="Create reservation"
-                            />
+                            <div className="flex flex-1 items-center justify-center">
+                                <EmptyState
+                                    title="No upcoming reservation"
+                                    description="Create a new reservation when you need a company vehicle."
+                                    action={
+                                        <Link
+                                            href="/reservations/new"
+                                            className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
+                                        >
+                                            Create reservation
+                                        </Link>
+                                    }
+                                />
+                            </div>
                         )}
                     </section>
 
@@ -226,8 +238,9 @@ export default function DashboardPage() {
                                 className="border-y border-border px-4 py-3 transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm sm:flex sm:items-center sm:justify-between"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
-                                        <BookOpenText className="size-5 text-muted-foreground" />
+                                    <div
+                                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                                        <BookOpenText className="size-5 text-muted-foreground"/>
                                     </div>
 
                                     <div>
@@ -242,10 +255,12 @@ export default function DashboardPage() {
                                 </div>
                             </Link>
                         ) : (
-                            <EmptyCard
-                                title="Everything is complete"
-                                description="There are no reservations waiting for trip log completion."
-                            />
+                            <div className="flex flex-1 items-center justify-center">
+                                <EmptyState
+                                    title="Everything is complete"
+                                    description="There are no reservations waiting for trip log completion."
+                                />
+                            </div>
                         )}
                     </section>
                 </div>
@@ -294,7 +309,7 @@ export default function DashboardPage() {
                                 </div>
                             ) : (
                                 <div className="flex flex-1 items-center justify-center">
-                                    <EmptyCard
+                                    <EmptyState
                                         title="No recent trips"
                                         description="Completed trip logs will appear here."
                                     />
@@ -312,38 +327,6 @@ export default function DashboardPage() {
                         </div>
                     </section>
                 </aside>
-            </div>
-        </div>
-    );
-}
-
-function EmptyCard({
-                       title,
-                       description,
-                       actionHref,
-                       actionLabel,
-                   }: {
-    title: string;
-    description: string;
-    actionHref?: string;
-    actionLabel?: string;
-}) {
-    return (
-        <div className="p-5">
-            <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
-                <p className="text-sm font-medium text-card-foreground">{title}</p>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                    {description}
-                </p>
-
-                {actionHref && actionLabel ? (
-                    <Link
-                        href={actionHref}
-                        className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
-                    >
-                        {actionLabel}
-                    </Link>
-                ) : null}
             </div>
         </div>
     );

@@ -152,6 +152,20 @@ export class VehiclesService {
                         mode: 'insensitive',
                     },
                 },
+                {
+                    managerMembership: {
+                        is: {
+                            user: {
+                                is: {
+                                    name: {
+                                        contains: query.search,
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
             ];
         }
 

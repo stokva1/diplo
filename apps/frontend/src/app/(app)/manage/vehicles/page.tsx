@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
+import {PageHeader} from "@/components/PageHeader";
+import {EmptyState} from "@/components/EmptyState";
 
 type DashboardVehicle = {
     id: string;
@@ -88,12 +90,10 @@ export default function ManagedVehiclesPage() {
         <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                        Managed vehicles
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Overview of vehicles assigned to your management.
-                    </p>
+                    <PageHeader
+                        title="Managed vehicles"
+                        description="Overview of vehicles assigned to your management."
+                    />
                 </div>
             </div>
 
@@ -106,12 +106,10 @@ export default function ManagedVehiclesPage() {
             ) : (
                 <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
                     <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
-                        <p className="text-sm font-medium text-card-foreground">
-                            No managed vehicles
-                        </p>
-                        <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                            Vehicles assigned to your management will appear here.
-                        </p>
+                        <EmptyState
+                            title="No managed vehicles"
+                            description="Vehicles assigned to your management will appear here."
+                        />
                     </div>
                 </div>
             )}

@@ -1,86 +1,74 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState, type ElementType} from "react";
+import {useSearchParams} from "next/navigation";
 import {
     ArrowDownAZ,
     ArrowUpAZ,
-    Car,
+    CalendarDays,
     Check,
+    CheckCircle2,
     ChevronDown,
-    Gauge,
     Search,
+    TriangleAlert,
     User,
-    Wrench,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
 
-type VehicleStatus = "ACTIVE" | "UNAVAILABLE" | "ARCHIVED";
-type StatusFilter = "ALL" | VehicleStatus;
-
-type FuelType =
-    | "PETROL"
-    | "DIESEL"
-    | "ELECTRIC"
-    | "HYBRID"
-    | "LPG"
-    | "CNG"
-    | "OTHER";
-
-type VehicleListItem = {
-    id: string;
-    name: string;
-    licensePlate: string;
-    brand?: string | null;
-    model?: string | null;
-    fuelType: FuelType;
-    currentOdometerKm: number;
-    status: VehicleStatus;
-    manager?: {
-        id: string;
-        name: string;
-    } | null;
-};
-
-type VehiclesResponse = {
-    data: VehicleListItem[];
-    pagination?: {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-    };
-};
-
-type SortField = "name" | "licensePlate" | "currentOdometerKm";
+type IssueStatus = "OPEN" | "RESOLVED";
+type StatusFilter = "ALL" | IssueStatus;
+type SortField = "createdAt" | "resolvedAt";
 type SortDirection = "asc" | "desc";
 
 const sortFieldLabels: Record<SortField, string> = {
-    name: "Vehicle name",
-    licensePlate: "License plate",
-    currentOdometerKm: "Odometer",
+    createdAt: "Created date",
+    resolvedAt: "Resolved date",
 };
 
-export default function AdminVehiclesPage() {
-    const [vehicles, setVehicles] = useState<VehicleListItem[]>([]);
+type IssueListItem = {
+    id: string;
+    vehicle: {
+        id: string;
+        name: string;
+        licensePlate: string;
+    };
+    reservationId?: string | null;
+    reportedBy: {
+        id: string;
+        name: string;
+    };
+    description: string;
+    status: IssueStatus;
+    createdAt: string;
+};
+
+type IssuesResponse = {
+    data: IssueListItem[];
+};
+
+export default function IssuesPage() {
+    const searchParams = useSearchParams();
+    const vehicleId = searchParams.get("vehicleId");
+
+    const [issues, setIssues] = useState<IssueListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-    const [statusOpen, setStatusOpen] = useState(false);
-
+    const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const [sortOpen, setSortOpen] = useState(false);
-    const [sortField, setSortField] = useState<SortField>("name");
-    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+    const [sortField, setSortField] = useState<SortField>("createdAt");
+    const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
     const sort = sortDirection === "desc" ? `-${sortField}` : sortField;
 
     useEffect(() => {
-        async function loadVehicles() {
+        async function loadIssues() {
             const token = localStorage.getItem("accessToken");
 
             if (!token) {
@@ -88,111 +76,104 @@ export default function AdminVehiclesPage() {
                 return;
             }
 
+            const params = new URLSearchParams({
+                scope: "managed",
+                page: "1",
+                limit: "50",
+                sort,
+            });
+
+            if (vehicleId) {
+                params.set("vehicleId", vehicleId);
+            }
+
             setIsLoading(true);
             setError(null);
 
             try {
-                const params = new URLSearchParams({
-                    page: "1",
-                    limit: "50",
-                    scope: "all",
-                    sort,
-                });
-
-                if (search.trim()) {
-                    params.set("search", search.trim());
-                }
-
-                if (statusFilter !== "ALL") {
-                    params.set("status", statusFilter);
-                }
-
-                if (statusFilter === "ARCHIVED") {
-                    params.set("includeArchived", "true");
-                }
-
-                const response = await apiRequest<VehiclesResponse>(
-                    `/vehicles?${params.toString()}`,
+                const response = await apiRequest<IssuesResponse>(
+                    `/issues?${params.toString()}`,
                     {token},
                 );
 
-                setVehicles(response.data);
+                setIssues(response.data);
             } catch (error) {
                 setError(
                     error instanceof Error
                         ? error.message
-                        : "Vehicles could not be loaded.",
+                        : "Issues could not be loaded.",
                 );
             } finally {
                 setIsLoading(false);
             }
         }
 
-        loadVehicles();
-    }, [search, statusFilter, sort]);
+        loadIssues();
+    }, [vehicleId, sort]);
 
-    const activeVehiclesCount = useMemo(
-        () => vehicles.filter((vehicle) => vehicle.status === "ACTIVE").length,
-        [vehicles],
-    );
-
-    const unavailableVehiclesCount = useMemo(
-        () => vehicles.filter((vehicle) => vehicle.status === "UNAVAILABLE").length,
-        [vehicles],
-    );
-
-    const archivedVehiclesCount = useMemo(
-        () => vehicles.filter((vehicle) => vehicle.status === "ARCHIVED").length,
-        [vehicles],
-    );
-
-    const filteredVehicles = useMemo(() => {
+    const filteredIssues = useMemo(() => {
         const normalizedSearch = search.trim().toLowerCase();
 
-        if (normalizedSearch.length === 0) {
-            return vehicles;
-        }
+        return issues.filter((issue) => {
+            const matchesStatus =
+                statusFilter === "ALL" || issue.status === statusFilter;
 
-        return vehicles.filter((vehicle) => {
-            return (
-                vehicle.name.toLowerCase().includes(normalizedSearch) ||
-                vehicle.licensePlate.toLowerCase().includes(normalizedSearch) ||
-                vehicle.brand?.toLowerCase().includes(normalizedSearch) ||
-                vehicle.model?.toLowerCase().includes(normalizedSearch) ||
-                vehicle.manager?.name.toLowerCase().includes(normalizedSearch)
-            );
+            const matchesSearch =
+                normalizedSearch.length === 0 ||
+                issue.description.toLowerCase().includes(normalizedSearch) ||
+                issue.vehicle.name.toLowerCase().includes(normalizedSearch) ||
+                issue.vehicle.licensePlate.toLowerCase().includes(normalizedSearch) ||
+                issue.reportedBy.name.toLowerCase().includes(normalizedSearch);
+
+            return matchesStatus && matchesSearch;
         });
-    }, [vehicles, search]);
+    }, [issues, search, statusFilter]);
+
+    const openIssuesCount = issues.filter((issue) => issue.status === "OPEN").length;
+    const resolvedIssuesCount = issues.filter((issue) => issue.status === "RESOLVED").length;
+
+    if (isLoading) {
+        return (
+            <div className="rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
+                Loading issues...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+                {error}
+            </div>
+        );
+    }
 
     return (
         <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <PageHeader
-                    title="Vehicles"
-                    description="All vehicles in the organization with their current status and manager."
-                />
+                <div>
+                    <PageHeader
+                        title="Issues"
+                        description="Reports connected to vehicles under your management."
+                    />
+                </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[40rem]">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[30rem]">
                     <SummaryCard
-                        label="All vehicles"
-                        value={vehicles.length}
-                        icon={Car}
+                        label="All issues"
+                        value={issues.length}
+                        icon={TriangleAlert}
                     />
                     <SummaryCard
-                        label="Active"
-                        value={activeVehiclesCount}
-                        icon={Car}
+                        label="Resolved"
+                        value={resolvedIssuesCount}
+                        icon={CheckCircle2}
                     />
                     <SummaryCard
-                        label="Unavailable"
-                        value={unavailableVehiclesCount}
-                        icon={Wrench}
-                        tone={unavailableVehiclesCount > 0 ? "warning" : "neutral"}
-                    />
-                    <SummaryCard
-                        label="Archived"
-                        value={archivedVehiclesCount}
-                        icon={Car}
+                        label="Open"
+                        value={openIssuesCount}
+                        icon={TriangleAlert}
+                        tone={openIssuesCount > 0 ? "danger" : "neutral"}
                     />
                 </div>
             </div>
@@ -205,7 +186,7 @@ export default function AdminVehiclesPage() {
                             <input
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
-                                placeholder="Search by vehicle, plate, brand, model or manager..."
+                                placeholder="Search by vehicle, plate, reporter or description..."
                                 className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-ring"
                             />
                         </div>
@@ -214,22 +195,22 @@ export default function AdminVehiclesPage() {
                             <div className="relative">
                                 <button
                                     type="button"
-                                    onClick={() => setStatusOpen((value) => !value)}
+                                    onClick={() => setStatusMenuOpen((value) => !value)}
                                     className="inline-flex h-10 min-w-44 items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                                 >
                                     {getStatusFilterLabel(statusFilter)}
                                     <ChevronDown className="size-4 text-muted-foreground"/>
                                 </button>
 
-                                {statusOpen ? (
+                                {statusMenuOpen ? (
                                     <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
-                                        {(["ALL", "ACTIVE", "UNAVAILABLE", "ARCHIVED"] as StatusFilter[]).map((status) => (
+                                        {(["ALL", "OPEN", "RESOLVED"] as StatusFilter[]).map((status) => (
                                             <button
                                                 key={status}
                                                 type="button"
                                                 onClick={() => {
                                                     setStatusFilter(status);
-                                                    setStatusOpen(false);
+                                                    setStatusMenuOpen(false);
                                                 }}
                                                 className={cn(
                                                     "flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
@@ -271,7 +252,7 @@ export default function AdminVehiclesPage() {
                                         </div>
 
                                         <div className="space-y-1">
-                                            {(["name", "licensePlate", "currentOdometerKm"] as SortField[]).map((field) => (
+                                            {(["createdAt", "resolvedAt"] as SortField[]).map((field) => (
                                                 <button
                                                     key={field}
                                                     type="button"
@@ -331,83 +312,17 @@ export default function AdminVehiclesPage() {
                     </div>
                 </div>
 
-                {isLoading ? (
-                    <div className="px-5 py-4 text-sm text-muted-foreground">
-                        Loading vehicles...
-                    </div>
-                ) : error ? (
-                    <div className="m-5 rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                        {error}
-                    </div>
-                ) : filteredVehicles.length > 0 ? (
-                    <div className="overflow-hidden">
-                        <div className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[1.4fr_1fr_1fr_1fr_130px_130px]">
-                            <div>Vehicle</div>
-                            <div>Brand / model</div>
-                            <div>Manager</div>
-                            <div>Fuel</div>
-                            <div className="text-right">Odometer</div>
-                            <div className="text-right">Status</div>
-                        </div>
-
-                        <div className="divide-y divide-border">
-                            {filteredVehicles.map((vehicle) => (
-                                <Link
-                                    key={vehicle.id}
-                                    href={`/vehicles/${vehicle.id}`}
-                                    className="group grid gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[1.4fr_1fr_1fr_1fr_130px_130px] md:items-center"
-                                >
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                                            <Car className="size-5 text-muted-foreground"/>
-                                        </div>
-
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold text-card-foreground">
-                                                {vehicle.name}
-                                            </p>
-                                            <p className="mt-0.5 font-mono text-xs tracking-wide text-muted-foreground">
-                                                {vehicle.licensePlate}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm text-card-foreground">
-                                            {[vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "—"}
-                                        </p>
-                                    </div>
-
-                                    <div className="min-w-0">
-                                        <p className="inline-flex max-w-full items-center gap-1.5 truncate text-sm text-muted-foreground">
-                                            <User className="size-3.5 shrink-0"/>
-                                            <span className="truncate">
-                                                {vehicle.manager?.name ?? "Unassigned"}
-                                            </span>
-                                        </p>
-                                    </div>
-
-                                    <div className="text-sm text-muted-foreground">
-                                        {fuelTypeLabels[vehicle.fuelType]}
-                                    </div>
-
-                                    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-card-foreground md:justify-end md:text-right">
-                                        <Gauge className="size-3.5 text-muted-foreground md:hidden"/>
-                                        {formatKm(vehicle.currentOdometerKm)}
-                                    </div>
-
-                                    <div className="md:flex md:justify-end">
-                                        <StatusBadge status={vehicle.status}/>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
+                {filteredIssues.length > 0 ? (
+                    <div className="divide-y divide-border">
+                        {filteredIssues.map((issue) => (
+                            <IssueRow key={issue.id} issue={issue}/>
+                        ))}
                     </div>
                 ) : (
                     <div className="p-5">
                         <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
                             <EmptyState
-                                title="No vehicles found"
+                                title="No issues found"
                                 description="Try changing the search or status filter."
                             />
                         </div>
@@ -415,6 +330,61 @@ export default function AdminVehiclesPage() {
                 )}
             </section>
         </div>
+    );
+}
+
+function IssueRow({issue}: { issue: IssueListItem }) {
+    return (
+        <Link
+            href={`/apps/frontend/src/app/(app)/manage/issues/${issue.id}`}
+            className="grid grid-cols-1 gap-4 px-5 py-4 transition-colors hover:bg-muted/40 lg:grid-cols-[1.5fr_1fr]"
+        >
+            <div className="flex min-w-0 items-start gap-3">
+                <div
+                    className={cn(
+                        "flex size-10 shrink-0 items-center justify-center rounded-lg border",
+                        issue.status === "OPEN"
+                            ? "border-warning/40 bg-warning/15 text-warning-foreground"
+                            : "border-success/25 bg-success/10 text-success",
+                    )}
+                >
+                    {issue.status === "OPEN" ? (
+                        <TriangleAlert className="size-5"/>
+                    ) : (
+                        <CheckCircle2 className="size-5"/>
+                    )}
+                </div>
+
+                <div className="min-w-0">
+                    <p className="line-clamp-2 break-words text-sm font-medium text-card-foreground">
+                        {issue.description}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                            <User className="size-3.5"/>
+                            {issue.reportedBy.name}
+                        </span>
+
+                        <span className="inline-flex items-center gap-1.5">
+                            <CalendarDays className="size-3.5"/>
+                            {formatDateTime(issue.createdAt)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex min-w-0 items-start gap-3 lg:justify-end">
+                <div className="min-w-0 lg:text-right">
+                    <p className="truncate text-sm font-semibold text-card-foreground">
+                        {issue.vehicle.name}
+                    </p>
+                    <p className="mt-0.5 font-mono text-xs tracking-wide text-muted-foreground">
+                        {issue.vehicle.licensePlate}
+                    </p>
+                </div>
+            </div>
+        </Link>
     );
 }
 
@@ -426,15 +396,15 @@ function SummaryCard({
                      }: {
     label: string;
     value: number;
-    icon: React.ElementType;
-    tone?: "neutral" | "warning";
+    icon: ElementType;
+    tone?: "neutral" | "danger";
 }) {
     return (
         <div
             className={cn(
                 "rounded-xl border bg-card px-4 py-3 shadow-sm",
                 tone === "neutral" && "border-border",
-                tone === "warning" && "border-warning/40 bg-warning/15",
+                tone === "danger" && "border-destructive/25 bg-destructive/10",
             )}
         >
             <div className="flex items-center justify-between gap-3">
@@ -445,7 +415,7 @@ function SummaryCard({
                     className={cn(
                         "size-4 shrink-0",
                         tone === "neutral" && "text-muted-foreground",
-                        tone === "warning" && "text-warning-foreground",
+                        tone === "danger" && "text-destructive",
                     )}
                 />
             </div>
@@ -454,7 +424,7 @@ function SummaryCard({
                 className={cn(
                     "mt-1 text-2xl font-semibold tracking-tight",
                     tone === "neutral" && "text-card-foreground",
-                    tone === "warning" && "text-warning-foreground",
+                    tone === "danger" && "text-destructive",
                 )}
             >
                 {value}
@@ -463,23 +433,16 @@ function SummaryCard({
     );
 }
 
-function StatusBadge({status}: { status: VehicleStatus }) {
-    const labelByStatus: Record<VehicleStatus, string> = {
-        ACTIVE: "Active",
-        UNAVAILABLE: "Unavailable",
-        ARCHIVED: "Archived",
-    };
-
+function IssueStatusBadge({status}: { status: IssueStatus }) {
     return (
         <span
             className={cn(
-                "inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-                status === "ACTIVE" && "border-success/25 bg-success/10 text-success",
-                status === "UNAVAILABLE" && "border-warning/40 bg-warning/15 text-warning-foreground",
-                status === "ARCHIVED" && "border-border bg-muted text-muted-foreground",
+                "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium",
+                status === "OPEN" && "border-warning/40 bg-warning/15 text-warning-foreground",
+                status === "RESOLVED" && "border-success/25 bg-success/10 text-success",
             )}
         >
-            {labelByStatus[status]}
+            {status === "OPEN" ? "Open" : "Resolved"}
         </span>
     );
 }
@@ -487,24 +450,19 @@ function StatusBadge({status}: { status: VehicleStatus }) {
 function getStatusFilterLabel(status: StatusFilter) {
     const labels: Record<StatusFilter, string> = {
         ALL: "All statuses",
-        ACTIVE: "Active",
-        UNAVAILABLE: "Unavailable",
-        ARCHIVED: "Archived",
+        OPEN: "Open",
+        RESOLVED: "Resolved",
     };
 
     return labels[status];
 }
 
-const fuelTypeLabels: Record<FuelType, string> = {
-    PETROL: "Petrol",
-    DIESEL: "Diesel",
-    ELECTRIC: "Electric",
-    HYBRID: "Hybrid",
-    LPG: "LPG",
-    CNG: "CNG",
-    OTHER: "Other",
-};
-
-function formatKm(value: number) {
-    return `${new Intl.NumberFormat("en-GB").format(value)} km`;
+function formatDateTime(value: string) {
+    return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(new Date(value));
 }

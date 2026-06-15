@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
+import {EmptyState} from "@/components/EmptyState";
 
 type AvailableVehicle = {
     id: string;
@@ -505,12 +506,10 @@ export default function NewReservationPage() {
                         </div>
                     ) : (
                         <div className="rounded-xl border border-border bg-card px-5 py-12 text-center shadow-sm">
-                            <p className="text-sm font-medium text-card-foreground">
-                                No vehicles available
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Try a different date or time window.
-                            </p>
+                            <EmptyState
+                                title="No vehicles available"
+                                description="Try a different date or time window."
+                            />
                             <button
                                 type="button"
                                 onClick={() => setStep(1)}

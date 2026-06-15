@@ -61,7 +61,7 @@ const sections: NavSection[] = [
                 roles: ["VEHICLE_MANAGER", "ADMIN"],
             },
             {
-                href: "/issues",
+                href: "/manage/issues",
                 label: "Issues",
                 icon: TriangleAlert,
                 roles: ["VEHICLE_MANAGER", "ADMIN"],
@@ -96,7 +96,7 @@ const sections: NavSection[] = [
                 roles: ["ADMIN"],
             },
             {
-                href: "/admin/users",
+                href: "/admin/members",
                 label: "Members",
                 icon: Users,
                 roles: ["ADMIN"],
