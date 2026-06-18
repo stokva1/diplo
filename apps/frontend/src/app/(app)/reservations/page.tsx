@@ -14,6 +14,10 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
+import {StatusBadge} from "@/components/StatusBadge";
+import {formatTime} from "@/lib/date";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
 
@@ -56,6 +60,20 @@ const filters: { key: "ALL" | ReservationStatus; label: string }[] = [
     {key: "CANCELLED", label: "Cancelled"},
 ];
 
+const reservationStatusLabels: Record<ReservationStatus, string> = {
+    ACTIVE: "Active",
+    FINISHED: "Finished",
+    CANCELLED: "Cancelled",
+};
+
+const reservationStatusVariants: Record<
+    ReservationStatus,
+    "info" | "success" | "muted"
+> = {
+    ACTIVE: "info",
+    FINISHED: "success",
+    CANCELLED: "muted",
+};
 
 
 export default function ReservationsPage() {
@@ -115,12 +133,10 @@ export default function ReservationsPage() {
     return (
         <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <PageHeader
-                        title="Reservations"
-                        description="Every vehicle booking you have made."
-                    />
-                </div>
+                <PageHeader
+                    title="Reservations"
+                    description="Every vehicle booking you have made."
+                />
 
                 <Link
                     href="/reservations/new"
@@ -196,8 +212,10 @@ export default function ReservationsPage() {
                     </button>
 
                     {sortOpen ? (
-                        <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
-                            <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <div
+                            className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                            <div
+                                className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                 Sort by
                             </div>
 
@@ -222,7 +240,8 @@ export default function ReservationsPage() {
 
                             <div className="my-2 h-px bg-border"/>
 
-                            <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            <div
+                                className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                 Direction
                             </div>
 
@@ -261,13 +280,14 @@ export default function ReservationsPage() {
             </div>
 
             {isLoading ? (
-                <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
-                    Loading reservations...
-                </div>
+                <LoadingState
+                    label="Loading reservations..."
+                    variant="inline"
+                />
             ) : error ? (
-                <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+                <Alert variant="error">
                     {error}
-                </div>
+                </Alert>
             ) : (
                 <div className="flex flex-col gap-3">
                     {list.map((reservation) => (
@@ -286,13 +306,15 @@ export default function ReservationsPage() {
                                         <p className="truncate text-sm font-semibold text-card-foreground">
                                             {reservation.vehicle.name}
                                         </p>
-                                        <StatusBadge status={reservation.status}/>
+                                        <StatusBadge variant={reservationStatusVariants[reservation.status]}>
+                                            {reservationStatusLabels[reservation.status]}
+                                        </StatusBadge>
 
                                         {reservation.status === "FINISHED" && reservation.hasTripLog === false ? (
-                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/25 bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                                                <TriangleAlert className="size-3.5"/>
+                                            <StatusBadge variant="warning">
+                                                <TriangleAlert className="size-3.5" />
                                                 Trip log needed
-                                            </span>
+                                            </StatusBadge>
                                         ) : null}
                                     </div>
 
@@ -308,7 +330,8 @@ export default function ReservationsPage() {
                                     </p>
                                 </div>
 
-                                <div className="flex shrink-0 items-start justify-between gap-4 sm:w-64 sm:flex-col sm:items-end">
+                                <div
+                                    className="flex shrink-0 items-start justify-between gap-4 sm:w-64 sm:flex-col sm:items-end">
                                     <div className="text-left sm:text-right">
                                         <p className="text-sm font-medium text-card-foreground">
                                             {formatRelativeDate(reservation.startAt)}
@@ -336,29 +359,6 @@ export default function ReservationsPage() {
     );
 }
 
-function StatusBadge({status}: { status: ReservationStatus }) {
-    const labelByStatus: Record<ReservationStatus, string> = {
-        ACTIVE: "Active",
-        FINISHED: "Finished",
-        CANCELLED: "Cancelled",
-    };
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-                status === "ACTIVE" &&
-                "border-info/25 bg-info/10 text-info",
-                status === "FINISHED" &&
-                "border-success/25 bg-success/10 text-success",
-                status === "CANCELLED" &&
-                "border-muted bg-muted text-muted-foreground",
-            )}
-        >
-            {labelByStatus[status]}
-        </span>
-    );
-}
 
 function formatRelativeDate(value: string) {
     const date = new Date(value);
@@ -404,13 +404,6 @@ function formatReservationRange(startValue: string, endValue: string) {
     }
 
     return `${formatShortDateTime(startValue)} – ${formatShortDateTime(endValue)}`;
-}
-
-function formatTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
 }
 
 function formatShortDateTime(value: string) {

@@ -18,6 +18,11 @@ import {
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
+import {PageHeader} from "@/components/PageHeader";
+import {StatusBadge} from "@/components/StatusBadge";
+import {formatDate, formatTime} from "@/lib/date";
 
 type VehicleStatus = "ACTIVE" | "UNAVAILABLE" | "ARCHIVED";
 
@@ -100,6 +105,21 @@ type ReservationsResponse = {
     data: ReservationListItem[];
 };
 
+const vehicleStatusLabels: Record<VehicleStatus, string> = {
+    ACTIVE: "Active",
+    UNAVAILABLE: "Unavailable",
+    ARCHIVED: "Archived",
+};
+
+const vehicleStatusVariants: Record<
+    VehicleStatus,
+    "success" | "warning" | "muted"
+> = {
+    ACTIVE: "success",
+    UNAVAILABLE: "warning",
+    ARCHIVED: "muted",
+};
+
 export default function VehicleDetailPage() {
     const params = useParams<{ vehicleId: string }>();
     const router = useRouter();
@@ -162,13 +182,7 @@ export default function VehicleDetailPage() {
     }, [vehicleId]);
 
     if (isLoading) {
-        return (
-            <div className="mx-auto max-w-6xl">
-                <div className="rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
-                    Loading vehicle detail...
-                </div>
-            </div>
-        );
+        return <LoadingState label="Loading vehicle detail..." />;
     }
 
     if (error && !vehicle) {
@@ -176,9 +190,9 @@ export default function VehicleDetailPage() {
             <div className="mx-auto max-w-6xl">
                 <BackButton onClick={() => router.back()}/>
 
-                <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+                <Alert variant="error">
                     {error}
-                </div>
+                </Alert>
             </div>
         );
     }
@@ -194,23 +208,23 @@ export default function VehicleDetailPage() {
             <BackButton onClick={() => router.back()}/>
 
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0">
-                    <h1 className="truncate text-3xl font-semibold tracking-tight text-foreground">
-                        {vehicle.name}
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {[vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "Vehicle detail"} ·{" "}
-                        <span className="font-mono">{vehicle.licensePlate}</span>
-                    </p>
-                </div>
-                <StatusBadge status={vehicle.status}/>
+                <PageHeader
+                    title={vehicle.name}
+                    description={`${vehicle.brand} ${vehicle.model} · ${vehicle.licensePlate}`}
+                />
+                <StatusBadge
+                    size="md"
+                    variant={vehicleStatusVariants[vehicle.status]}
+                >
+                    {vehicleStatusLabels[vehicle.status]}
+                </StatusBadge>
 
             </div>
 
             {error ? (
-                <div className="mb-5 rounded-xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+                <Alert variant="error" className="mb-5">
                     {error}
-                </div>
+                </Alert>
             ) : null}
 
             <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -323,7 +337,9 @@ export default function VehicleDetailPage() {
                                         <p className="line-clamp-2 break-words text-sm font-medium text-card-foreground">
                                             {issue.description}
                                         </p>
-                                        <IssueBadge status={issue.status}/>
+                                        <StatusBadge variant={issue.status === "OPEN" ? "warning" : "success"}>
+                                            {issue.status === "OPEN" ? "Open" : "Resolved"}
+                                        </StatusBadge>
                                     </div>
 
                                     <p className="mt-1 text-xs text-muted-foreground">
@@ -561,41 +577,6 @@ function Panel({
     );
 }
 
-function StatusBadge({status}: { status: VehicleStatus }) {
-    const labelByStatus: Record<VehicleStatus, string> = {
-        ACTIVE: "Active",
-        UNAVAILABLE: "Unavailable",
-        ARCHIVED: "Archived",
-    };
-
-    return (
-        <span
-            className={cn(
-                "inline-flex w-fit items-center rounded-full border px-3 py-1 text-sm font-medium",
-                status === "ACTIVE" && "border-success/25 bg-success/10 text-success",
-                status === "UNAVAILABLE" && "border-warning/40 bg-warning/15 text-warning-foreground",
-                status === "ARCHIVED" && "border-border bg-muted text-muted-foreground",
-            )}
-        >
-            {labelByStatus[status]}
-        </span>
-    );
-}
-
-function IssueBadge({status}: { status: "OPEN" | "RESOLVED" }) {
-    return (
-        <span
-            className={cn(
-                "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-                status === "OPEN" && "border-warning/40 bg-warning/15 text-warning-foreground",
-                status === "RESOLVED" && "border-success/25 bg-success/10 text-success",
-            )}
-        >
-            {status === "OPEN" ? "Open" : "Resolved"}
-        </span>
-    );
-}
-
 const fuelTypeLabels: Record<FuelType, string> = {
     PETROL: "Petrol",
     DIESEL: "Diesel",
@@ -622,25 +603,10 @@ function formatDateTime(value: string) {
 
 function formatDateRange(startValue: string, endValue: string) {
     if (isSameCalendarDay(startValue, endValue)) {
-        return `${formatSimpleDate(startValue)}, ${formatTime(startValue)}–${formatTime(endValue)}`;
+        return `${formatDate(startValue)}, ${formatTime(startValue)}–${formatTime(endValue)}`;
     }
 
     return `${formatDateTime(startValue)} – ${formatDateTime(endValue)}`;
-}
-
-function formatSimpleDate(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(value));
-}
-
-function formatTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
 }
 
 function isSameCalendarDay(startValue: string, endValue: string) {

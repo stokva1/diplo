@@ -19,6 +19,11 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {FilterBar, FilterField} from "@/components/FilterBar";
+import {LoadingState} from "@/components/LoadingState";
+import {StatCard} from "@/components/StatCard";
+import {formatDate, formatTime} from "@/lib/date";
 
 type TripLogListItem = {
     id: string;
@@ -242,17 +247,17 @@ export default function AdminTripLogsPage() {
                 />
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[30rem]">
-                    <SummaryCard
+                    <StatCard
                         label="Trip logs"
                         value={logs.length}
                         icon={BookOpenText}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Distance"
                         value={formatKm(totalDistanceKm)}
                         icon={Gauge}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Fuel expenses"
                         value={formatCurrency(totalRefuelingCost)}
                         icon={Fuel}
@@ -262,10 +267,14 @@ export default function AdminTripLogsPage() {
 
             <section className="relative rounded-xl border border-border bg-card shadow-sm">
                 <div className="border-b border-border p-5">
-                    <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-end">
+                    <FilterBar
+                        variant="embedded"
+                        gridClassName="xl:grid-cols-[1fr_auto] xl:items-end"
+                    >
                         <div className="grid gap-3 lg:grid-cols-[1fr_150px_150px] lg:items-end">
                             <div className="relative min-w-0">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                                <Search
+                                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
                                 <input
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
@@ -274,16 +283,16 @@ export default function AdminTripLogsPage() {
                                 />
                             </div>
 
-                            <Field label="From">
+                            <FilterField label="From">
                                 <input
                                     type="date"
                                     value={from}
                                     onChange={(event) => setFrom(event.target.value)}
                                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring"
                                 />
-                            </Field>
+                            </FilterField>
 
-                            <Field label="To">
+                            <FilterField label="To">
                                 <input
                                     type="date"
                                     value={to}
@@ -291,7 +300,7 @@ export default function AdminTripLogsPage() {
                                     onChange={(event) => setTo(event.target.value)}
                                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring"
                                 />
-                            </Field>
+                            </FilterField>
                         </div>
 
                         <div className="flex flex-col gap-3 sm:flex-row">
@@ -306,7 +315,8 @@ export default function AdminTripLogsPage() {
                                 </button>
 
                                 {refueledOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
                                         {(["ALL", "true", "false"] as RefueledFilter[]).map((value) => (
                                             <button
                                                 key={value}
@@ -349,8 +359,10 @@ export default function AdminTripLogsPage() {
                                 </button>
 
                                 {sortOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Sort by
                                         </div>
 
@@ -375,7 +387,8 @@ export default function AdminTripLogsPage() {
 
                                         <div className="my-2 h-px bg-border"/>
 
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Direction
                                         </div>
 
@@ -421,20 +434,22 @@ export default function AdminTripLogsPage() {
                                 Export
                             </button>
                         </div>
-                    </div>
+                    </FilterBar>
                 </div>
 
                 {isLoading ? (
-                    <div className="px-5 py-4 text-sm text-muted-foreground">
-                        Loading trip logs...
-                    </div>
+                    <LoadingState
+                        variant="inline"
+                        label="Loading trip logs..."
+                    />
                 ) : error ? (
-                    <div className="m-5 rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <Alert variant="error" className="m-5">
                         {error}
-                    </div>
+                    </Alert>
                 ) : filteredLogs.length > 0 ? (
                     <div className="overflow-hidden">
-                        <div className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[150px_1.1fr_1fr_1.4fr_120px_130px]">
+                        <div
+                            className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[150px_1.1fr_1fr_1.4fr_120px_130px]">
                             <div>Date</div>
                             <div>Vehicle</div>
                             <div>Member</div>
@@ -452,7 +467,7 @@ export default function AdminTripLogsPage() {
                                 >
                                     <div>
                                         <p className="text-sm font-medium text-card-foreground">
-                                            {formatSimpleDate(log.startAt ?? log.date ?? log.completedAt)}
+                                            {formatDate(log.startAt ?? log.date ?? log.completedAt)}
                                         </p>
                                         <p className="mt-0.5 text-xs text-muted-foreground">
                                             {formatTripTimeRange(log.startAt, log.endAt)}
@@ -460,7 +475,8 @@ export default function AdminTripLogsPage() {
                                     </div>
 
                                     <div className="flex min-w-0 items-center gap-3">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted md:hidden">
+                                        <div
+                                            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted md:hidden">
                                             <Car className="size-5 text-muted-foreground"/>
                                         </div>
 
@@ -511,57 +527,13 @@ export default function AdminTripLogsPage() {
                     </div>
                 ) : (
                     <div className="p-5">
-                        <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
-                            <EmptyState
-                                title="No trip logs found"
-                                description="Try changing the search, date range or refueling filter."
-                            />
-                        </div>
+                        <EmptyState
+                            title="No trip logs found"
+                            description="Try changing the search, date range or refueling filter."
+                        />
                     </div>
                 )}
             </section>
-        </div>
-    );
-}
-
-function Field({
-                   label,
-                   children,
-               }: {
-    label: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {label}
-            </span>
-            {children}
-        </label>
-    );
-}
-
-function SummaryCard({
-                         label,
-                         value,
-                         icon: Icon,
-                     }: {
-    label: string;
-    value: string | number;
-    icon: React.ElementType;
-}) {
-    return (
-        <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                    {label}
-                </p>
-                <Icon className="size-4 shrink-0 text-muted-foreground"/>
-            </div>
-
-            <p className="mt-1 truncate text-2xl font-semibold tracking-tight text-card-foreground">
-                {value}
-            </p>
         </div>
     );
 }
@@ -574,41 +546,6 @@ function getRefueledFilterLabel(value: RefueledFilter) {
     };
 
     return labels[value];
-}
-
-function formatSimpleDate(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(date);
-}
-
-function formatTime(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(date);
 }
 
 function formatShortDateTime(value?: string | null) {

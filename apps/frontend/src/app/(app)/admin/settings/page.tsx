@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {PageHeader} from "@/components/PageHeader";
+import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
 
 type OrganizationSettings = {
     tripLogRetentionMonths: number;
@@ -117,22 +119,16 @@ export default function OrganizationSettingsPage() {
     }
 
     if (isLoading) {
-        return (
-            <div className="rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
-                Loading settings...
-            </div>
-        );
+        return <LoadingState label="Loading settings..."/>;
     }
 
     return (
         <div className="mx-auto max-w-5xl">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <PageHeader
-                        title="Organization settings"
-                        description="Configure data retention rules for trip logs and issue photos."
-                    />
-                </div>
+                <PageHeader
+                    title="Organization settings"
+                    description="Configure data retention rules for trip logs and issue photos."
+                />
             </div>
 
             <section className="rounded-xl border border-border bg-card shadow-sm">
@@ -155,16 +151,16 @@ export default function OrganizationSettingsPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-6 p-5">
                     {error ? (
-                        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        <Alert variant="error">
                             {error}
-                        </div>
+                        </Alert>
                     ) : null}
 
                     {success ? (
-                        <div className="flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">
+                        <Alert variant="success">
                             <CheckCircle2 className="size-4 shrink-0"/>
                             {success}
-                        </div>
+                        </Alert>
                     ) : null}
 
                     <div className="grid gap-4 md:grid-cols-2">

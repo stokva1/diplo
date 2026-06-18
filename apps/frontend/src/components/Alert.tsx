@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 type AlertVariant = "info" | "success" | "warning" | "error";
 
 const variantClasses: Record<AlertVariant, string> = {
-    info: "border-border bg-card text-card-foreground",
-    success: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    warning: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    info: "border-info/25 bg-info/10 text-info",
+    success: "border-success/25 bg-success/10 text-success",
+    warning: "border-warning/40 bg-warning/15 text-warning-foreground",
     error: "border-destructive/25 bg-destructive/10 text-destructive",
 };
 
@@ -17,14 +17,14 @@ export function Alert({
                           className,
                       }: {
     title?: ReactNode;
-    children: ReactNode;
+    children?: ReactNode;
     variant?: AlertVariant;
     className?: string;
 }) {
     return (
-        <div className={cn("rounded-lg border px-4 py-3 text-sm", variantClasses[variant], className)}>
+        <div className={cn("flex items-center gap-2 rounded-lg border px-4 py-3 text-sm", variantClasses[variant], className)}>
             {title ? <p className="mb-1 font-medium">{title}</p> : null}
-            <div className="text-sm leading-6">{children}</div>
+            {children}
         </div>
     );
 }

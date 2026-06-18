@@ -4,13 +4,31 @@ import { cn } from "@/lib/utils";
 export function FilterBar({
                               children,
                               className,
+                              gridClassName,
+                              variant = "card",
                           }: {
     children: ReactNode;
     className?: string;
+    gridClassName?: string;
+    variant?: "card" | "embedded";
 }) {
     return (
-        <div className={cn("mb-6 rounded-xl border border-border bg-card p-4 shadow-sm", className)}>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">{children}</div>
+        <div
+            className={cn(
+                variant === "card"
+                    ? "mb-6 rounded-xl border border-border bg-card p-4 shadow-sm"
+                    : "mb-0 border-0 bg-transparent p-0 shadow-none",
+                className,
+            )}
+        >
+            <div
+                className={cn(
+                    "grid grid-cols-1 gap-3 md:grid-cols-2",
+                    gridClassName,
+                )}
+            >
+                {children}
+            </div>
         </div>
     );
 }
@@ -18,13 +36,17 @@ export function FilterBar({
 export function FilterField({
                                 label,
                                 children,
+                                className,
                             }: {
     label: string;
     children: ReactNode;
+    className?: string;
 }) {
     return (
-        <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+        <label className={cn("block", className)}>
+      <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
             {children}
         </label>
     );

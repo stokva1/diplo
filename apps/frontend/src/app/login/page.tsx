@@ -4,6 +4,7 @@ import { SubmitEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { LoginResponse } from "@/types/api";
+import {Alert} from "@/components/Alert";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -136,9 +137,9 @@ export default function LoginPage() {
                                 </div>
 
                                 {error ? (
-                                    <div className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                    <Alert variant="error">
                                         {error}
-                                    </div>
+                                    </Alert>
                                 ) : null}
 
                                 <button
@@ -151,13 +152,12 @@ export default function LoginPage() {
                             </form>
 
                             {loginResponse ? (
-                                <div className="mt-5 rounded-md border border-success/25 bg-success/10 p-3 text-sm text-success">
-                                    <p className="font-medium">Signed in successfully.</p>
-                                    <p className="mt-1 text-xs">
-                                        {loginResponse.user.name} · {loginResponse.organization.name} ·{" "}
-                                        {loginResponse.member.role}
-                                    </p>
-                                </div>
+                                <Alert
+                                    className="mt-5"
+                                    variant="success"
+                                    title="Signed in successfully."
+                                />
+
                             ) : null}
                         </div>
                     </div>

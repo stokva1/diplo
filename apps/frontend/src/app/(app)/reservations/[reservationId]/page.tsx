@@ -14,8 +14,12 @@ import {
     XCircle,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
-import {cn} from "@/lib/utils";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
+import {PageHeader} from "@/components/PageHeader";
+import {StatusBadge} from "@/components/StatusBadge";
+import {formatDate, formatTime} from "@/lib/date";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
 
@@ -57,6 +61,21 @@ type CancelReservationResponse = {
     id: string;
     status: "CANCELLED";
     cancelledAt: string;
+};
+
+const reservationStatusLabels: Record<ReservationStatus, string> = {
+    ACTIVE: "Active",
+    FINISHED: "Finished",
+    CANCELLED: "Cancelled",
+};
+
+const reservationStatusVariants: Record<
+    ReservationStatus,
+    "info" | "success" | "muted"
+> = {
+    ACTIVE: "info",
+    FINISHED: "success",
+    CANCELLED: "muted",
 };
 
 export default function ReservationDetailPage() {
@@ -151,13 +170,7 @@ export default function ReservationDetailPage() {
     }
 
     if (isLoading) {
-        return (
-            <div className="mx-auto max-w-7xl">
-                <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
-                    Loading reservation...
-                </div>
-            </div>
-        );
+        return <LoadingState label="Loading reservation..."/>;
     }
 
     if (error && !reservation) {
@@ -172,9 +185,9 @@ export default function ReservationDetailPage() {
                     Back
                 </button>
 
-                <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+                <Alert variant="error">
                     {error}
-                </div>
+                </Alert>
             </div>
         );
     }
@@ -198,25 +211,25 @@ export default function ReservationDetailPage() {
             </button>
 
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                        Reservation detail
-                    </h1>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {reservation.vehicle.name} · {reservation.vehicle.licensePlate}
-                    </p>
-                </div>
+                <PageHeader
+                    title="Reservation detail"
+                    description={`${reservation.vehicle.name} · ${reservation.vehicle.licensePlate}`}
+                />
 
                 <div className="sm:pt-8">
-                    <StatusBadge status={reservation.status}/>
+                    <StatusBadge
+                        size="md"
+                        variant={reservationStatusVariants[reservation.status]}
+                    >
+                        {reservationStatusLabels[reservation.status]}
+                    </StatusBadge>
                 </div>
             </div>
 
             {error ? (
-                <div className="mb-4 rounded-xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+                <Alert variant="error" className="mb-4">
                     {error}
-                </div>
+                </Alert>
             ) : null}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -321,7 +334,8 @@ export default function ReservationDetailPage() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                <section className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <section
+                    className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                     <div className="flex items-center justify-between border-b border-border px-5 py-4">
                         <div>
                             <h2 className="text-base font-semibold text-card-foreground">
@@ -350,18 +364,17 @@ export default function ReservationDetailPage() {
                             </div>
                         ) : (
                             <div className="flex flex-1 p-5">
-                                <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center">
-                                    <EmptyState
-                                        title="No trip log yet"
-                                        description="The trip log can be completed after the reservation ends."
-                                    />
-                                </div>
+                                <EmptyState
+                                    title="No trip log yet"
+                                    description="The trip log can be completed after the reservation ends."
+                                />
                             </div>
                         )}
                     </div>
                 </section>
 
-                <section className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <section
+                    className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                     <div className="flex items-center justify-between border-b border-border px-5 py-4">
                         <div>
                             <h2 className="text-base font-semibold text-card-foreground">
@@ -373,7 +386,8 @@ export default function ReservationDetailPage() {
                         </div>
 
                         {reservation.issues.length > 0 ? (
-                            <span className="inline-flex items-center rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">
+                            <span
+                                className="inline-flex items-center rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">
                     {reservation.issues.length}
                 </span>
                         ) : null}
@@ -388,7 +402,9 @@ export default function ReservationDetailPage() {
                                             <p className="line-clamp-2 break-words text-sm font-medium text-card-foreground">
                                                 {issue.description}
                                             </p>
-                                            <IssueStatusBadge status={issue.status}/>
+                                            <StatusBadge variant={issue.status === "OPEN" ? "warning" : "success"}>
+                                                {issue.status === "OPEN" ? "Open" : "Resolved"}
+                                            </StatusBadge>
                                         </div>
 
                                         <p className="mt-1 text-xs text-muted-foreground">
@@ -399,12 +415,10 @@ export default function ReservationDetailPage() {
                             </div>
                         ) : (
                             <div className="flex flex-1 p-5">
-                                <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 py-6 text-center">
-                                    <EmptyState
-                                        title="No issues reported"
-                                        description="Any vehicle problems connected to this trip will appear here."
-                                    />
-                                </div>
+                                <EmptyState
+                                    title="No issues reported"
+                                    description="Any vehicle problems connected to this trip will appear here."
+                                />
                             </div>
                         )}
                     </div>
@@ -447,42 +461,6 @@ function Detail({
     );
 }
 
-function StatusBadge({status,}: { status: ReservationStatus; }) {
-    const labelByStatus: Record<ReservationStatus, string> = {
-        ACTIVE: "Active",
-        FINISHED: "Finished",
-        CANCELLED: "Cancelled",
-    };
-
-    return (
-        <span
-            className={cn(
-                "inline-flex w-fit items-center rounded-full border px-3 py-1 text-sm font-medium ",
-                status === "ACTIVE" && "border-info/25 bg-info/10 text-info",
-                status === "FINISHED" && "border-success/25 bg-success/10 text-success",
-                status === "CANCELLED" &&
-                "border-muted bg-muted text-muted-foreground",
-            )}
-        >
-            {labelByStatus[status]}
-        </span>
-    );
-}
-
-function IssueStatusBadge({status}: { status: "OPEN" | "RESOLVED" }) {
-    return (
-        <span
-            className={cn(
-                "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-                status === "OPEN" && "border-warning/40 bg-warning/15 text-warning-foreground",
-                status === "RESOLVED" && "border-success/25 bg-success/10 text-success",
-            )}
-        >
-            {status === "OPEN" ? "Open" : "Resolved"}
-        </span>
-    );
-}
-
 function canCancelReservation(reservation: ReservationDetail) {
     if (reservation.status !== "ACTIVE") {
         return false;
@@ -493,10 +471,10 @@ function canCancelReservation(reservation: ReservationDetail) {
 
 function formatDateRange(startValue: string, endValue: string) {
     if (isSameCalendarDay(startValue, endValue)) {
-        return formatSimpleDate(startValue);
+        return formatDate(startValue);
     }
 
-    return `${formatSimpleDate(startValue)} – ${formatSimpleDate(endValue)}`;
+    return `${formatDate(startValue)} – ${formatDate(endValue)}`;
 }
 
 function formatTimeRange(startValue: string, endValue: string) {
@@ -505,14 +483,6 @@ function formatTimeRange(startValue: string, endValue: string) {
     }
 
     return `${formatShortDateTime(startValue)} – ${formatShortDateTime(endValue)}`;
-}
-
-function formatSimpleDate(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(value));
 }
 
 function formatSimpleDateTime(value: string) {
@@ -529,13 +499,6 @@ function formatShortDateTime(value: string) {
     return new Intl.DateTimeFormat("en-GB", {
         day: "2-digit",
         month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function formatTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
     }).format(new Date(value));

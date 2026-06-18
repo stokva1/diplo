@@ -20,6 +20,12 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {FilterBar, FilterField} from "@/components/FilterBar";
+import {LoadingState} from "@/components/LoadingState";
+import {StatCard} from "@/components/StatCard";
+import {StatusBadge} from "@/components/StatusBadge";
+import {formatDate, formatTime} from "@/lib/date";
 
 type ReservationStatus = "ACTIVE" | "FINISHED" | "CANCELLED";
 type StatusFilter = "ALL" | ReservationStatus;
@@ -61,6 +67,21 @@ type SortDirection = "asc" | "desc";
 const sortFieldLabels: Record<SortField, string> = {
     startAt: "Reservation start",
     endAt: "Reservation end",
+};
+
+const reservationStatusLabels: Record<ReservationStatus, string> = {
+    ACTIVE: "Active",
+    FINISHED: "Finished",
+    CANCELLED: "Cancelled",
+};
+
+const reservationStatusVariants: Record<
+    ReservationStatus,
+    "info" | "success" | "muted"
+> = {
+    ACTIVE: "info",
+    FINISHED: "success",
+    CANCELLED: "muted",
 };
 
 export default function AdminReservationsPage() {
@@ -187,30 +208,28 @@ export default function AdminReservationsPage() {
     return (
         <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <PageHeader
-                        title="Reservations"
-                        description="All organization reservations with vehicle, member and trip log status."
-                    />
-                </div>
+                <PageHeader
+                    title="Reservations"
+                    description="All organization reservations with vehicle, member and trip log status."
+                />
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[40rem]">
-                    <SummaryCard
+                    <StatCard
                         label="Active"
                         value={activeReservationsCount}
                         icon={CalendarDays}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Finished"
                         value={finishedReservationsCount}
                         icon={CheckCircle2}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Cancelled"
                         value={cancelledReservationsCount}
                         icon={XCircle}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Missing logs"
                         value={missingTripLogsCount}
                         icon={TriangleAlert}
@@ -221,10 +240,14 @@ export default function AdminReservationsPage() {
 
             <section className="relative rounded-xl border border-border bg-card shadow-sm">
                 <div className="border-b border-border p-5">
-                    <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-end">
+                    <FilterBar
+                        variant="embedded"
+                        gridClassName="xl:grid-cols-[1fr_auto] xl:items-end"
+                    >
                         <div className="grid gap-3 lg:grid-cols-[1fr_150px_150px] lg:items-end">
                             <div className="relative min-w-0">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                                <Search
+                                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
                                 <input
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
@@ -233,16 +256,16 @@ export default function AdminReservationsPage() {
                                 />
                             </div>
 
-                            <Field label="From">
+                            <FilterField label="From">
                                 <input
                                     type="date"
                                     value={from}
                                     onChange={(event) => setFrom(event.target.value)}
                                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring"
                                 />
-                            </Field>
+                            </FilterField>
 
-                            <Field label="To">
+                            <FilterField label="To">
                                 <input
                                     type="date"
                                     value={to}
@@ -250,7 +273,7 @@ export default function AdminReservationsPage() {
                                     onChange={(event) => setTo(event.target.value)}
                                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring"
                                 />
-                            </Field>
+                            </FilterField>
                         </div>
 
                         <div className="flex flex-col gap-3 sm:flex-row">
@@ -265,7 +288,8 @@ export default function AdminReservationsPage() {
                                 </button>
 
                                 {statusOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
                                         {(["ALL", "ACTIVE", "FINISHED", "CANCELLED"] as StatusFilter[]).map((status) => (
                                             <button
                                                 key={status}
@@ -303,7 +327,8 @@ export default function AdminReservationsPage() {
                                 </button>
 
                                 {missingTripLogOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
                                         {(["ALL", "true", "false"] as MissingTripLogFilter[]).map((value) => (
                                             <button
                                                 key={value}
@@ -346,8 +371,10 @@ export default function AdminReservationsPage() {
                                 </button>
 
                                 {sortOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Sort by
                                         </div>
 
@@ -372,7 +399,8 @@ export default function AdminReservationsPage() {
 
                                         <div className="my-2 h-px bg-border"/>
 
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Direction
                                         </div>
 
@@ -409,20 +437,22 @@ export default function AdminReservationsPage() {
                                 ) : null}
                             </div>
                         </div>
-                    </div>
+                    </FilterBar>
                 </div>
 
                 {isLoading ? (
-                    <div className="px-5 py-4 text-sm text-muted-foreground">
-                        Loading reservations...
-                    </div>
+                    <LoadingState
+                        variant="inline"
+                        label="Loading reservations..."
+                    />
                 ) : error ? (
-                    <div className="m-5 rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <Alert variant="error" className="m-5">
                         {error}
-                    </div>
+                    </Alert>
                 ) : filteredReservations.length > 0 ? (
                     <div className="overflow-hidden">
-                        <div className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[150px_1.15fr_1fr_1.2fr_1fr_130px]">
+                        <div
+                            className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[150px_1.15fr_1fr_1.2fr_1fr_130px]">
                             <div>Date</div>
                             <div>Vehicle</div>
                             <div>Member</div>
@@ -440,7 +470,7 @@ export default function AdminReservationsPage() {
                                 >
                                     <div>
                                         <p className="text-sm font-medium text-card-foreground">
-                                            {formatSimpleDate(reservation.startAt)}
+                                            {formatDate(reservation.startAt)}
                                         </p>
                                         <p className="mt-0.5 text-xs text-muted-foreground">
                                             {formatReservationTimeRange(
@@ -451,7 +481,8 @@ export default function AdminReservationsPage() {
                                     </div>
 
                                     <div className="flex min-w-0 items-center gap-3">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted md:hidden">
+                                        <div
+                                            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted md:hidden">
                                             <Car className="size-5 text-muted-foreground"/>
                                         </div>
 
@@ -488,7 +519,9 @@ export default function AdminReservationsPage() {
                                     </div>
 
                                     <div className="md:flex md:justify-end">
-                                        <StatusBadge status={reservation.status}/>
+                                        <StatusBadge variant={reservationStatusVariants[reservation.status]}>
+                                            {reservationStatusLabels[reservation.status]}
+                                        </StatusBadge>
                                     </div>
                                 </Link>
                             ))}
@@ -496,12 +529,10 @@ export default function AdminReservationsPage() {
                     </div>
                 ) : (
                     <div className="p-5">
-                        <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
-                            <EmptyState
-                                title="No reservations found"
-                                description="Try changing the search, date range or status filter."
-                            />
-                        </div>
+                        <EmptyState
+                            title="No reservations found"
+                            description="Try changing the search, date range or status filter."
+                        />
                     </div>
                 )}
             </section>
@@ -509,105 +540,22 @@ export default function AdminReservationsPage() {
     );
 }
 
-function Field({
-                   label,
-                   children,
-               }: {
-    label: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {label}
-            </span>
-            {children}
-        </label>
-    );
-}
-
-function SummaryCard({
-                         label,
-                         value,
-                         icon: Icon,
-                         tone = "neutral",
-                     }: {
-    label: string;
-    value: number;
-    icon: React.ElementType;
-    tone?: "neutral" | "warning";
-}) {
-    return (
-        <div
-            className={cn(
-                "rounded-xl border bg-card px-4 py-3 shadow-sm",
-                tone === "neutral" && "border-border",
-                tone === "warning" && "border-warning/40 bg-warning/15",
-            )}
-        >
-            <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                    {label}
-                </p>
-                <Icon
-                    className={cn(
-                        "size-4 shrink-0",
-                        tone === "neutral" && "text-muted-foreground",
-                        tone === "warning" && "text-warning-foreground",
-                    )}
-                />
-            </div>
-
-            <p
-                className={cn(
-                    "mt-1 text-2xl font-semibold tracking-tight",
-                    tone === "neutral" && "text-card-foreground",
-                    tone === "warning" && "text-warning-foreground",
-                )}
-            >
-                {value}
-            </p>
-        </div>
-    );
-}
-
-function StatusBadge({status}: { status: ReservationStatus }) {
-    const labelByStatus: Record<ReservationStatus, string> = {
-        ACTIVE: "Active",
-        FINISHED: "Finished",
-        CANCELLED: "Cancelled",
-    };
-
-    return (
-        <span
-            className={cn(
-                "inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-                status === "ACTIVE" && "border-info/25 bg-info/10 text-info",
-                status === "FINISHED" && "border-success/25 bg-success/10 text-success",
-                status === "CANCELLED" && "border-border bg-muted text-muted-foreground",
-            )}
-        >
-            {labelByStatus[status]}
-        </span>
-    );
-}
-
 function TripLogBadge({reservation}: { reservation: ReservationListItem }) {
     if (reservation.hasTripLog) {
         return (
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-success/25 bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
+            <StatusBadge variant="success">
                 <ClipboardList className="size-3.5"/>
                 Completed
-            </span>
+            </StatusBadge>
         );
     }
 
     if (reservation.status === "FINISHED") {
         return (
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-warning/40 bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning-foreground">
+            <StatusBadge variant="warning">
                 <TriangleAlert className="size-3.5"/>
                 Missing
-            </span>
+            </StatusBadge>
         );
     }
 
@@ -637,41 +585,6 @@ function getMissingTripLogFilterLabel(value: MissingTripLogFilter) {
     };
 
     return labels[value];
-}
-
-function formatSimpleDate(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(date);
-}
-
-function formatTime(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(date);
 }
 
 function formatShortDateTime(value?: string | null) {

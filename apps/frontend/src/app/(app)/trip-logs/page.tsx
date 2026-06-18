@@ -16,6 +16,11 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {FilterBar, FilterField} from "@/components/FilterBar";
+import {LoadingState} from "@/components/LoadingState";
+import {StatCard} from "@/components/StatCard";
+import {formatDate, formatTime} from "@/lib/date";
 
 type TripLogListItem = {
     id: string;
@@ -207,12 +212,10 @@ export default function TripLogsPage() {
     return (
         <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <PageHeader
-                        title="Trip logs"
-                        description="Completed trips with recorded mileage and refueling."
-                    />
-                </div>
+                <PageHeader
+                    title="Trip logs"
+                    description="Completed trips with recorded mileage and refueling."
+                />
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-[30rem]">
                     <StatCard
@@ -233,322 +236,259 @@ export default function TripLogsPage() {
                 </div>
             </div>
 
-            <div className="mb-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-                <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto_auto] md:items-end">
-                    <Field label="From">
-                        <input
-                            type="date"
-                            value={from}
-                            onChange={(event) => setFrom(event.target.value)}
-                            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
-                        />
-                    </Field>
+            <section className="rounded-xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border p-4">
+                    <FilterBar
+                        variant="embedded"
+                        gridClassName="md:grid-cols-[1fr_1fr_180px_100px_120px] md:items-end"
+                    >
+                        <FilterField label="From">
+                            <input
+                                type="date"
+                                value={from}
+                                onChange={(event) => setFrom(event.target.value)}
+                                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
+                            />
+                        </FilterField>
 
-                    <Field label="To">
-                        <input
-                            type="date"
-                            value={to}
-                            min={from || undefined}
-                            onChange={(event) => setTo(event.target.value)}
-                            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
-                        />
-                    </Field>
+                        <FilterField label="To">
+                            <input
+                                type="date"
+                                value={to}
+                                min={from || undefined}
+                                onChange={(event) => setTo(event.target.value)}
+                                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
+                            />
+                        </FilterField>
 
-                    <div className="relative">
-                        <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            Refueling
-                        </span>
+                        <div className="relative">
+                            <FilterField label="Refueling">
+                                <button
+                                    type="button"
+                                    onClick={() => setRefueledOpen((value) => !value)}
+                                    className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                                >
+            <span>
+              {refueled === "ALL"
+                  ? "All"
+                  : refueled === "true"
+                      ? "Refueled"
+                      : "Not refueled"}
+            </span>
+                                    <ChevronDown className="size-4 text-muted-foreground"/>
+                                </button>
+                            </FilterField>
 
-                        <button
-                            type="button"
-                            onClick={() => setRefueledOpen((value) => !value)}
-                            className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-                        >
-                            <span>
-                                {refueled === "ALL"
-                                    ? "All"
-                                    : refueled === "true"
-                                        ? "Refueled"
-                                        : "Not refueled"}
-                            </span>
-                            <ChevronDown className="size-4 text-muted-foreground"/>
-                        </button>
-
-                        {refueledOpen ? (
-                            <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
-                                {[
-                                    {value: "ALL", label: "All"},
-                                    {value: "true", label: "Refueled"},
-                                    {value: "false", label: "Not refueled"},
-                                ].map((item) => (
-                                    <button
-                                        key={item.value}
-                                        type="button"
-                                        onClick={() => {
-                                            setRefueled(item.value as RefueledFilter);
-                                            setRefueledOpen(false);
-                                        }}
-                                        className={cn(
-                                            "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
-                                            refueled === item.value
-                                                ? "text-foreground"
-                                                : "text-muted-foreground",
-                                        )}
-                                    >
-                                        {item.label}
-                                        {refueled === item.value ? <Check className="size-4"/> : null}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div className="relative">
-                        <button
-                            type="button"
-                            onClick={() => setSortOpen((value) => !value)}
-                            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted md:w-auto"
-                        >
-                            {sortDirection === "asc" ? (
-                                <ArrowUpAZ className="size-4 text-muted-foreground"/>
-                            ) : (
-                                <ArrowDownAZ className="size-4 text-muted-foreground"/>
-                            )}
-                            Sort
-                            <ChevronDown className="size-4 text-muted-foreground"/>
-                        </button>
-
-                        {sortOpen ? (
-                            <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
-                                <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    Sort by
-                                </div>
-
-                                <div className="space-y-1">
-                                    {(["completedAt", "startAt"] as SortField[]).map((field) => (
+                            {refueledOpen ? (
+                                <div
+                                    className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                                    {[
+                                        {value: "ALL", label: "All"},
+                                        {value: "true", label: "Refueled"},
+                                        {value: "false", label: "Not refueled"},
+                                    ].map((item) => (
                                         <button
-                                            key={field}
+                                            key={item.value}
                                             type="button"
-                                            onClick={() => setSortField(field)}
+                                            onClick={() => {
+                                                setRefueled(item.value as RefueledFilter);
+                                                setRefueledOpen(false);
+                                            }}
                                             className={cn(
                                                 "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
-                                                sortField === field
+                                                refueled === item.value
                                                     ? "text-foreground"
                                                     : "text-muted-foreground",
                                             )}
                                         >
-                                            {sortFieldLabels[field]}
-                                            {sortField === field ? <Check className="size-4"/> : null}
+                                            {item.label}
+                                            {refueled === item.value ? <Check className="size-4"/> : null}
                                         </button>
                                     ))}
                                 </div>
+                            ) : null}
+                        </div>
 
-                                <div className="my-2 h-px bg-border"/>
-
-                                <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    Direction
-                                </div>
-
-                                <div className="space-y-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSortDirection("asc")}
-                                        className={cn(
-                                            "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
-                                            sortDirection === "asc"
-                                                ? "text-foreground"
-                                                : "text-muted-foreground",
-                                        )}
-                                    >
-                                        Ascending
-                                        {sortDirection === "asc" ? <Check className="size-4"/> : null}
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setSortDirection("desc")}
-                                        className={cn(
-                                            "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
-                                            sortDirection === "desc"
-                                                ? "text-foreground"
-                                                : "text-muted-foreground",
-                                        )}
-                                    >
-                                        Descending
-                                        {sortDirection === "desc" ? <Check className="size-4"/> : null}
-                                    </button>
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-                    <button
-                        type="button"
-                        onClick={handleExport}
-                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90 md:w-auto"
-                    >
-                        <Download className="size-4"/>
-                        Export
-                    </button>
-                </div>
-            </div>
-
-            {isLoading ? (
-                <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
-                    Loading trip logs...
-                </div>
-            ) : error ? (
-                <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
-                    {error}
-                </div>
-            ) : (
-                <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                    <div className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[150px_1.1fr_1.5fr_120px_130px]">
-                        <div>Date</div>
-                        <div>Vehicle</div>
-                        <div>Route</div>
-                        <div className="text-right">Distance</div>
-                        <div className="text-right">Refueling</div>
-                    </div>
-
-                    <div className="divide-y divide-border">
-                        {logs.map((log) => (
-                            <Link
-                                key={log.id}
-                                href={`/reservations/${log.reservationId}`}
-                                className="group grid gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[150px_1.1fr_1.5fr_120px_130px] md:items-center"
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setSortOpen((value) => !value)}
+                                className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted md:w-[100px]"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted md:hidden">
-                                        <BookOpenText className="size-5 text-muted-foreground"/>
+                                {sortDirection === "asc" ? (
+                                    <ArrowUpAZ className="size-4 text-muted-foreground"/>
+                                ) : (
+                                    <ArrowDownAZ className="size-4 text-muted-foreground"/>
+                                )}
+                                Sort
+                                <ChevronDown className="size-4 text-muted-foreground"/>
+                            </button>
+
+                            {sortOpen ? (
+                                <div
+                                    className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                                    <div
+                                        className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Sort by
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-card-foreground">
-                                            {formatSimpleDate(log.startAt)}
+
+                                    <div className="space-y-1">
+                                        {(["completedAt", "startAt"] as SortField[]).map((field) => (
+                                            <button
+                                                key={field}
+                                                type="button"
+                                                onClick={() => setSortField(field)}
+                                                className={cn(
+                                                    "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
+                                                    sortField === field
+                                                        ? "text-foreground"
+                                                        : "text-muted-foreground",
+                                                )}
+                                            >
+                                                {sortFieldLabels[field]}
+                                                {sortField === field ? <Check className="size-4"/> : null}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="my-2 h-px bg-border"/>
+
+                                    <div
+                                        className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Direction
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSortDirection("asc")}
+                                            className={cn(
+                                                "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
+                                                sortDirection === "asc"
+                                                    ? "text-foreground"
+                                                    : "text-muted-foreground",
+                                            )}
+                                        >
+                                            Ascending
+                                            {sortDirection === "asc" ? <Check className="size-4"/> : null}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setSortDirection("desc")}
+                                            className={cn(
+                                                "flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted",
+                                                sortDirection === "desc"
+                                                    ? "text-foreground"
+                                                    : "text-muted-foreground",
+                                            )}
+                                        >
+                                            Descending
+                                            {sortDirection === "desc" ? <Check className="size-4"/> : null}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleExport}
+                            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90 md:w-[120px]"
+                        >
+                            <Download className="size-4"/>
+                            Export
+                        </button>
+                    </FilterBar>
+                </div>
+
+                {isLoading ? (
+                    <LoadingState
+                        variant="inline"
+                        label="Loading trip logs..."
+                    />
+                ) : error ? (
+                    <div className="p-5">
+                        <Alert variant="error">{error}</Alert>
+                    </div>
+                ) : (
+                    <>
+                        <div
+                            className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[150px_1.1fr_1.5fr_120px_130px]">
+                            <div>Date</div>
+                            <div>Vehicle</div>
+                            <div>Route</div>
+                            <div className="text-right">Distance</div>
+                            <div className="text-right">Refueling</div>
+                        </div>
+
+                        <div className="divide-y divide-border">
+                            {logs.map((log) => (
+                                <Link
+                                    key={log.id}
+                                    href={`/reservations/${log.reservationId}`}
+                                    className="group grid gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[150px_1.1fr_1.5fr_120px_130px] md:items-center"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted md:hidden">
+                                            <BookOpenText className="size-5 text-muted-foreground"/>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-card-foreground">
+                                                {formatDate(log.startAt)}
+                                            </p>
+                                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                                {formatTripTimeRange(log.startAt, log.endAt)}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-card-foreground">
+                                            {log.vehicle.name}
                                         </p>
                                         <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {formatTripTimeRange(log.startAt, log.endAt)}
+                                            {log.vehicle.licensePlate}
                                         </p>
                                     </div>
-                                </div>
 
-                                <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold text-card-foreground">
-                                        {log.vehicle.name}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                        {log.vehicle.licensePlate}
-                                    </p>
-                                </div>
-
-                                <div className="min-w-0 text-sm text-muted-foreground">
+                                    <div className="min-w-0 text-sm text-muted-foreground">
                                     <span className="block truncate">
                                         {log.origin} → {log.destination}
                                     </span>
-                                </div>
+                                    </div>
 
-                                <div className="text-sm font-medium text-card-foreground md:text-right">
-                                    {formatKm(log.distanceKm)}
-                                </div>
+                                    <div className="text-sm font-medium text-card-foreground md:text-right">
+                                        {formatKm(log.distanceKm)}
+                                    </div>
 
-                                <div className="text-sm md:text-right">
-                                    {log.refueled ? (
-                                        <span className="font-medium text-card-foreground">
+                                    <div className="text-sm md:text-right">
+                                        {log.refueled ? (
+                                            <span className="font-medium text-card-foreground">
                                             {formatCurrency(Number(log.refuelingCost ?? 0))}
                                         </span>
-                                    ) : (
-                                        <span className="text-muted-foreground">—</span>
-                                    )}
+                                        ) : (
+                                            <span className="text-muted-foreground">—</span>
+                                        )}
+                                    </div>
+                                </Link>
+                            ))}
+
+                            {logs.length === 0 ? (
+                                <div className="p-5">
+                                    <EmptyState
+                                        title="No trip logs"
+                                        description="No trip logs found for the selected filters."
+                                    />
                                 </div>
-                            </Link>
-                        ))}
-
-                        {logs.length === 0 ? (
-                            <EmptyState
-                                description="No trip logs found."
-                            />
-                        ) : null}
-                    </div>
-                </div>
-            )}
+                            ) : null}
+                        </div>
+                    </>
+                )}
+            </section>
         </div>
     );
-}
-
-function Field({
-                   label,
-                   children,
-               }: {
-    label: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <label className="block">
-            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {label}
-            </span>
-            {children}
-        </label>
-    );
-}
-
-function StatCard({
-                      label,
-                      value,
-                      icon: Icon,
-                  }: {
-    label: string;
-    value: string;
-    icon: React.ElementType;
-}) {
-    return (
-        <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                    {label}
-                </p>
-                <Icon className="size-4 shrink-0 text-muted-foreground"/>
-            </div>
-
-            <p className="mt-1 truncate text-2xl font-semibold tracking-tight text-card-foreground">
-                {value}
-            </p>
-        </div>
-    );
-}
-
-function formatSimpleDate(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(date);
-}
-
-function formatTime(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(date);
 }
 
 function formatKm(value: number) {

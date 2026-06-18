@@ -9,13 +9,16 @@ import {
     Check,
     ChevronLeft,
     ChevronRight,
-    CircleAlert,
+    CircleAlert, CircleX,
     Clock,
     MapPin,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
+import {formatTime} from "@/lib/date";
 
 type AvailableVehicle = {
     id: string;
@@ -355,9 +358,9 @@ export default function NewReservationPage() {
             </div>
 
             {error ? (
-                <div className="mb-5 rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <Alert variant="error" className="mb-5">
                     {error}
-                </div>
+                </Alert>
             ) : null}
 
             {step === 1 ? (
@@ -416,20 +419,20 @@ export default function NewReservationPage() {
                     </div>
 
                     {startsInPast ? (
-                        <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
-                            <CircleAlert className="mt-0.5 size-4 shrink-0"/>
+                        <Alert variant="error" className="mt-4">
+                            <CircleX className="size-4"/>
                             Reservation cannot start in the past.
-                        </div>
+                        </Alert>
                     ) : startAt && endAt && new Date(endAt) <= new Date(startAt) ? (
-                        <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
-                            <CircleAlert className="mt-0.5 size-4 shrink-0"/>
+                        <Alert variant="error" className="mt-4">
+                            <CircleX className="size-4"/>
                             End date and time must be after start date and time.
-                        </div>
+                        </Alert>
                     ) : (
-                        <div className="mt-4 flex items-start gap-2 rounded-lg border border-info/25 bg-info/10 p-3 text-sm text-info">
-                            <CircleAlert className="mt-0.5 size-4 shrink-0"/>
+                        <Alert variant="info" className="mt-4">
+                            <CircleAlert className="size-4"/>
                             After continuing, only vehicles available in this time window will be shown.
-                        </div>
+                        </Alert>
                     )}
                 </section>
             ) : null}
@@ -456,9 +459,10 @@ export default function NewReservationPage() {
                     </div>
 
                     {isLoadingVehicles ? (
-                        <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
-                            Loading available vehicles...
-                        </div>
+                        <LoadingState
+                            variant="inline"
+                            label="Loading available vehicles..."
+                        />
                     ) : vehicles.length > 0 ? (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             {vehicles.map((vehicle) => {
@@ -700,13 +704,6 @@ function formatShortDate(value: string) {
         day: "2-digit",
         month: "short",
         year: "numeric",
-    }).format(new Date(value));
-}
-
-function formatTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
     }).format(new Date(value));
 }
 

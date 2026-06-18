@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import type { Role } from "@/lib/types";
 import type { MeResponse } from "@/types/api";
+import {LoadingState} from "@/components/LoadingState";
 
 export default function ProtectedAppLayout({
                                                children,
@@ -45,13 +46,7 @@ export default function ProtectedAppLayout({
     }, [router]);
 
     if (isLoading) {
-        return (
-            <main className="flex min-h-screen items-center justify-center bg-background">
-                <div className="rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
-                    Loading...
-                </div>
-            </main>
-        );
+        return <LoadingState fullScreen />;
     }
 
     if (!me) {

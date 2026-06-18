@@ -13,6 +13,9 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
+import {formatDate} from "@/lib/date";
 
 type DashboardVehicle = {
     id: string;
@@ -70,34 +73,29 @@ export default function ManagedVehiclesPage() {
         loadVehicles();
     }, []);
 
-    if (isLoading) {
-        return (
-            <div className="rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm">
-                Loading managed vehicles...
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
-                {error}
-            </div>
-        );
-    }
-
     return (
         <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <PageHeader
-                        title="Managed vehicles"
-                        description="Overview of vehicles assigned to your management."
-                    />
-                </div>
+                <PageHeader
+                    title="Managed vehicles"
+                    description="Overview of vehicles assigned to your management."
+                />
             </div>
 
-            {vehicles.length > 0 ? (
+            {isLoading ? (
+                <section className="rounded-xl border border-border bg-card shadow-sm">
+                    <LoadingState
+                        variant="inline"
+                        label="Loading managed vehicles..."
+                    />
+                </section>
+            ) : error ? (
+                <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                    <Alert variant="error">
+                        {error}
+                    </Alert>
+                </section>
+            ) : vehicles.length > 0 ? (
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
                     {vehicles.map((vehicle) => (
                         <VehicleCard key={vehicle.id} vehicle={vehicle}/>
@@ -105,12 +103,10 @@ export default function ManagedVehiclesPage() {
                 </div>
             ) : (
                 <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                    <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
-                        <EmptyState
-                            title="No managed vehicles"
-                            description="Vehicles assigned to your management will appear here."
-                        />
-                    </div>
+                    <EmptyState
+                        title="No managed vehicles"
+                        description="Vehicles assigned to your management will appear here."
+                    />
                 </div>
             )}
         </div>
@@ -162,7 +158,7 @@ function VehicleCard({vehicle}: { vehicle: DashboardVehicle }) {
                         label="Next service"
                         value={
                             vehicle.nextServiceAt
-                                ? formatSimpleDate(vehicle.nextServiceAt)
+                                ? formatDate(vehicle.nextServiceAt)
                                 : "Not planned"
                         }
                         muted={!vehicle.nextServiceAt}
@@ -210,7 +206,8 @@ function VehicleImage({vehicle}: { vehicle: DashboardVehicle }) {
 
     return (
         <div className="flex h-32 items-center justify-center border-b border-border bg-muted/70">
-            <div className="flex size-16 items-center justify-center rounded-2xl border border-border bg-background shadow-sm">
+            <div
+                className="flex size-16 items-center justify-center rounded-2xl border border-border bg-background shadow-sm">
                 <Car className="size-8 text-muted-foreground"/>
             </div>
         </div>
@@ -286,13 +283,5 @@ function formatDateTime(value: string) {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function formatSimpleDate(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
     }).format(new Date(value));
 }

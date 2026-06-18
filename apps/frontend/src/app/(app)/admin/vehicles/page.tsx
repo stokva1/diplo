@@ -17,6 +17,11 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {FilterBar} from "@/components/FilterBar";
+import {LoadingState} from "@/components/LoadingState";
+import {StatCard} from "@/components/StatCard";
+import {StatusBadge} from "@/components/StatusBadge";
 
 type VehicleStatus = "ACTIVE" | "UNAVAILABLE" | "ARCHIVED";
 type StatusFilter = "ALL" | VehicleStatus;
@@ -62,6 +67,21 @@ const sortFieldLabels: Record<SortField, string> = {
     name: "Vehicle name",
     licensePlate: "License plate",
     currentOdometerKm: "Odometer",
+};
+
+const vehicleStatusLabels: Record<VehicleStatus, string> = {
+    ACTIVE: "Active",
+    UNAVAILABLE: "Unavailable",
+    ARCHIVED: "Archived",
+};
+
+const vehicleStatusVariants: Record<
+    VehicleStatus,
+    "success" | "warning" | "muted"
+> = {
+    ACTIVE: "success",
+    UNAVAILABLE: "warning",
+    ARCHIVED: "muted",
 };
 
 export default function AdminVehiclesPage() {
@@ -173,23 +193,23 @@ export default function AdminVehiclesPage() {
                 />
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[40rem]">
-                    <SummaryCard
+                    <StatCard
                         label="All vehicles"
                         value={vehicles.length}
                         icon={Car}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Active"
                         value={activeVehiclesCount}
                         icon={Car}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Unavailable"
                         value={unavailableVehiclesCount}
                         icon={Wrench}
                         tone={unavailableVehiclesCount > 0 ? "warning" : "neutral"}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Archived"
                         value={archivedVehiclesCount}
                         icon={Car}
@@ -199,9 +219,13 @@ export default function AdminVehiclesPage() {
 
             <section className="relative rounded-xl border border-border bg-card shadow-sm">
                 <div className="border-b border-border p-5">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="relative min-w-0 flex-1">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                    <FilterBar
+                        variant="embedded"
+                        gridClassName="lg:grid-cols-[1fr_auto] lg:items-center"
+                    >
+                        <div className="relative min-w-0">
+                            <Search
+                                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
                             <input
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
@@ -222,7 +246,8 @@ export default function AdminVehiclesPage() {
                                 </button>
 
                                 {statusOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
                                         {(["ALL", "ACTIVE", "UNAVAILABLE", "ARCHIVED"] as StatusFilter[]).map((status) => (
                                             <button
                                                 key={status}
@@ -265,8 +290,10 @@ export default function AdminVehiclesPage() {
                                 </button>
 
                                 {sortOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Sort by
                                         </div>
 
@@ -291,7 +318,8 @@ export default function AdminVehiclesPage() {
 
                                         <div className="my-2 h-px bg-border"/>
 
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Direction
                                         </div>
 
@@ -328,20 +356,22 @@ export default function AdminVehiclesPage() {
                                 ) : null}
                             </div>
                         </div>
-                    </div>
+                    </FilterBar>
                 </div>
 
                 {isLoading ? (
-                    <div className="px-5 py-4 text-sm text-muted-foreground">
-                        Loading vehicles...
-                    </div>
+                    <LoadingState
+                        label="Loading vehicles..."
+                        variant="inline"
+                    />
                 ) : error ? (
-                    <div className="m-5 rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <Alert variant="error" className="m-5">
                         {error}
-                    </div>
+                    </Alert>
                 ) : filteredVehicles.length > 0 ? (
                     <div className="overflow-hidden">
-                        <div className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[1.4fr_1fr_1fr_1fr_130px_130px]">
+                        <div
+                            className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[1.4fr_1fr_1fr_1fr_130px_130px]">
                             <div>Vehicle</div>
                             <div>Brand / model</div>
                             <div>Manager</div>
@@ -358,7 +388,8 @@ export default function AdminVehiclesPage() {
                                     className="group grid gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[1.4fr_1fr_1fr_1fr_130px_130px] md:items-center"
                                 >
                                     <div className="flex min-w-0 items-center gap-3">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                        <div
+                                            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                                             <Car className="size-5 text-muted-foreground"/>
                                         </div>
 
@@ -391,13 +422,16 @@ export default function AdminVehiclesPage() {
                                         {fuelTypeLabels[vehicle.fuelType]}
                                     </div>
 
-                                    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-card-foreground md:justify-end md:text-right">
+                                    <div
+                                        className="inline-flex items-center gap-1.5 text-sm font-medium text-card-foreground md:justify-end md:text-right">
                                         <Gauge className="size-3.5 text-muted-foreground md:hidden"/>
                                         {formatKm(vehicle.currentOdometerKm)}
                                     </div>
 
                                     <div className="md:flex md:justify-end">
-                                        <StatusBadge status={vehicle.status}/>
+                                        <StatusBadge variant={vehicleStatusVariants[vehicle.status]}>
+                                            {vehicleStatusLabels[vehicle.status]}
+                                        </StatusBadge>
                                     </div>
                                 </Link>
                             ))}
@@ -405,82 +439,14 @@ export default function AdminVehiclesPage() {
                     </div>
                 ) : (
                     <div className="p-5">
-                        <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
-                            <EmptyState
-                                title="No vehicles found"
-                                description="Try changing the search or status filter."
-                            />
-                        </div>
+                        <EmptyState
+                            title="No vehicles found"
+                            description="Try changing the search or status filter."
+                        />
                     </div>
                 )}
             </section>
         </div>
-    );
-}
-
-function SummaryCard({
-                         label,
-                         value,
-                         icon: Icon,
-                         tone = "neutral",
-                     }: {
-    label: string;
-    value: number;
-    icon: React.ElementType;
-    tone?: "neutral" | "warning";
-}) {
-    return (
-        <div
-            className={cn(
-                "rounded-xl border bg-card px-4 py-3 shadow-sm",
-                tone === "neutral" && "border-border",
-                tone === "warning" && "border-warning/40 bg-warning/15",
-            )}
-        >
-            <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                    {label}
-                </p>
-                <Icon
-                    className={cn(
-                        "size-4 shrink-0",
-                        tone === "neutral" && "text-muted-foreground",
-                        tone === "warning" && "text-warning-foreground",
-                    )}
-                />
-            </div>
-
-            <p
-                className={cn(
-                    "mt-1 text-2xl font-semibold tracking-tight",
-                    tone === "neutral" && "text-card-foreground",
-                    tone === "warning" && "text-warning-foreground",
-                )}
-            >
-                {value}
-            </p>
-        </div>
-    );
-}
-
-function StatusBadge({status}: { status: VehicleStatus }) {
-    const labelByStatus: Record<VehicleStatus, string> = {
-        ACTIVE: "Active",
-        UNAVAILABLE: "Unavailable",
-        ARCHIVED: "Archived",
-    };
-
-    return (
-        <span
-            className={cn(
-                "inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-                status === "ACTIVE" && "border-success/25 bg-success/10 text-success",
-                status === "UNAVAILABLE" && "border-warning/40 bg-warning/15 text-warning-foreground",
-                status === "ARCHIVED" && "border-border bg-muted text-muted-foreground",
-            )}
-        >
-            {labelByStatus[status]}
-        </span>
     );
 }
 

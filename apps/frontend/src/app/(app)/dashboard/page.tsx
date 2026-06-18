@@ -13,6 +13,10 @@ import {apiRequest} from "@/lib/api";
 import type {DashboardResponse} from "@/types/api";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
+import {StatusBadge} from "@/components/StatusBadge";
+import {formatDate, formatTime} from "@/lib/date";
 
 export default function DashboardPage() {
     const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -49,21 +53,17 @@ export default function DashboardPage() {
     }, []);
 
     if (isLoading) {
-        return (
-            <div className="rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
-                Loading dashboard...
-            </div>
-        );
+        return <LoadingState label="Loading dashboard..."/>;
     }
 
     if (error) {
         return (
-            <div
-                className="rounded-lg border border-destructive/25 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+            <Alert variant="error">
                 {error}
-            </div>
+            </Alert>
         );
     }
+
 
     const upcomingReservation = dashboard?.upcomingReservations[0] ?? null;
     const missingTripLog = dashboard?.missingTripLogs[0] ?? null;
@@ -72,37 +72,34 @@ export default function DashboardPage() {
     return (
         <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col gap-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <PageHeader
-                        title="Welcome back,"
-                        description="Here is summary of what is happening across the fleet."
-                    />
-                </div>
+                <PageHeader
+                    title="Welcome back,"
+                    description="Here is summary of what is happening across the fleet."
+                />
             </div>
 
             {missingTripLog ? (
-                <div
-                    className="flex items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/10 px-3.5 py-2.5">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md text-destructive">
+                <Alert variant="warning" className="gap-3 py-2.5">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md">
                         <TriangleAlert className="size-5"/>
                     </div>
 
                     <div className="min-w-0 flex-1">
-                        <h2 className="text-sm font-semibold text-destructive">
+                        <p className="font-semibold">
                             Missing trip log
-                        </h2>
-                        <p className="mt-0 text-xs text-muted-foreground">
+                        </p>
+                        <p className="text-xs text-muted-foreground">
                             One reservation is waiting for trip log completion.
                         </p>
                     </div>
 
                     <Link
                         href={`/reservations/${missingTripLog.reservationId}/trip-log`}
-                        className="hidden rounded-md px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 sm:inline"
+                        className="hidden rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-warning/10 sm:inline"
                     >
                         Complete
                     </Link>
-                </div>
+                </Alert>
             ) : null}
 
             <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-12">
@@ -225,10 +222,9 @@ export default function DashboardPage() {
                             </h2>
 
                             {missingTripLog ? (
-                                <span
-                                    className="inline-flex items-center rounded-full border border-destructive/40 bg-destructive/15 px-2.5 py-0.5 text-xs font-medium text-destructive">
+                                <StatusBadge variant="warning">
                                     Requires action
-                                </span>
+                                </StatusBadge>
                             ) : null}
                         </div>
 
@@ -248,7 +244,7 @@ export default function DashboardPage() {
                                             {missingTripLog.vehicleName}
                                         </h3>
                                         <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {formatSimpleDate(missingTripLog.date)} ·{" "}
+                                            {formatDate(missingTripLog.date)} ·{" "}
                                             {missingTripLog.origin} → {missingTripLog.destination}
                                         </p>
                                     </div>
@@ -295,7 +291,7 @@ export default function DashboardPage() {
                                                 </div>
 
                                                 <p className="shrink-0 text-xs text-muted-foreground">
-                                                    {formatSimpleDate(trip.date)}
+                                                    {formatDate(trip.date)}
                                                 </p>
                                             </div>
 
@@ -332,20 +328,6 @@ export default function DashboardPage() {
     );
 }
 
-function formatTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function formatSimpleDate(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(value));
-}
 
 function formatDay(value: string) {
     return new Intl.DateTimeFormat("en-GB", {

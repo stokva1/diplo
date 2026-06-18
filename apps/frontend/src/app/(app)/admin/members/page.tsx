@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useMemo, useState, type ElementType} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {
     ArrowDownAZ,
     ArrowUpAZ,
@@ -18,6 +18,12 @@ import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
 import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
+import {Alert} from "@/components/Alert";
+import {FilterBar} from "@/components/FilterBar";
+import {LoadingState} from "@/components/LoadingState";
+import {StatCard} from "@/components/StatCard";
+import {StatusBadge} from "@/components/StatusBadge";
+import {formatDate} from "@/lib/date";
 
 type MemberRole = "ADMIN" | "MEMBER";
 type MemberStatus = "ACTIVE" | "DISABLED";
@@ -53,6 +59,16 @@ type MembersResponse = {
         total: number;
         totalPages: number;
     };
+};
+
+const memberStatusLabels: Record<MemberStatus, string> = {
+    ACTIVE: "Active",
+    DISABLED: "Disabled",
+};
+
+const memberStatusVariants: Record<MemberStatus, "success" | "muted"> = {
+    ACTIVE: "success",
+    DISABLED: "muted",
 };
 
 export default function AdminMembersPage() {
@@ -135,25 +151,23 @@ export default function AdminMembersPage() {
     return (
         <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <PageHeader
-                        title="Members"
-                        description="Organization members, roles and assigned vehicle management."
-                    />
-                </div>
+                <PageHeader
+                    title="Members"
+                    description="Organization members, roles and assigned vehicle management."
+                />
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[30rem]">
-                    <SummaryCard
+                    <StatCard
                         label="Active"
                         value={activeMembersCount}
                         icon={Users}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Admins"
                         value={adminsCount}
                         icon={Shield}
                     />
-                    <SummaryCard
+                    <StatCard
                         label="Disabled"
                         value={disabledMembersCount}
                         icon={UserRoundX}
@@ -164,9 +178,13 @@ export default function AdminMembersPage() {
 
             <section className="relative rounded-xl border border-border bg-card shadow-sm">
                 <div className="border-b border-border p-5">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="relative min-w-0 flex-1">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                    <FilterBar
+                        variant="embedded"
+                        gridClassName="lg:grid-cols-[1fr_auto] lg:items-center"
+                    >
+                        <div className="relative min-w-0">
+                            <Search
+                                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
                             <input
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
@@ -187,7 +205,8 @@ export default function AdminMembersPage() {
                                 </button>
 
                                 {statusOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
                                         {(["ALL", "ACTIVE", "DISABLED"] as StatusFilter[]).map((status) => (
                                             <button
                                                 key={status}
@@ -230,8 +249,10 @@ export default function AdminMembersPage() {
                                 </button>
 
                                 {sortOpen ? (
-                                    <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    <div
+                                        className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-lg">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Sort by
                                         </div>
 
@@ -256,7 +277,8 @@ export default function AdminMembersPage() {
 
                                         <div className="my-2 h-px bg-border"/>
 
-                                        <div className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        <div
+                                            className="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                             Direction
                                         </div>
 
@@ -293,20 +315,22 @@ export default function AdminMembersPage() {
                                 ) : null}
                             </div>
                         </div>
-                    </div>
+                    </FilterBar>
                 </div>
 
                 {isLoading ? (
-                    <div className="px-5 py-4 text-sm text-muted-foreground">
-                        Loading members...
-                    </div>
+                    <LoadingState
+                        variant="inline"
+                        label="Loading members..."
+                    />
                 ) : error ? (
-                    <div className="m-5 rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <Alert variant="error" className="m-5">
                         {error}
-                    </div>
+                    </Alert>
                 ) : members.length > 0 ? (
                     <div className="overflow-hidden">
-                        <div className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[1.3fr_1fr_1.4fr_130px_130px]">
+                        <div
+                            className="hidden gap-3 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[1.3fr_1fr_1.4fr_130px_130px]">
                             <div>Member</div>
                             <div>Role</div>
                             <div>Managed vehicles</div>
@@ -322,7 +346,8 @@ export default function AdminMembersPage() {
                                     className="group grid gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[1.3fr_1fr_1.4fr_130px_130px] md:items-center"
                                 >
                                     <div className="flex min-w-0 items-center gap-3">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                        <div
+                                            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                                             <User className="size-5 text-muted-foreground"/>
                                         </div>
 
@@ -356,7 +381,8 @@ export default function AdminMembersPage() {
                                                 ))}
 
                                                 {member.managedVehicles.length > 2 ? (
-                                                    <span className="inline-flex rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                                    <span
+                                                        className="inline-flex rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                                         +{member.managedVehicles.length - 2}
                                                     </span>
                                                 ) : null}
@@ -373,7 +399,9 @@ export default function AdminMembersPage() {
                                     </div>
 
                                     <div className="md:flex md:justify-end">
-                                        <StatusBadge status={member.status}/>
+                                        <StatusBadge variant={memberStatusVariants[member.status]}>
+                                            {memberStatusLabels[member.status]}
+                                        </StatusBadge>
                                     </div>
                                 </Link>
                             ))}
@@ -381,60 +409,13 @@ export default function AdminMembersPage() {
                     </div>
                 ) : (
                     <div className="p-5">
-                        <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
-                            <EmptyState
-                                title="No members found"
-                                description="Try changing the search or status filter."
-                            />
-                        </div>
+                        <EmptyState
+                            title="No members found"
+                            description="Try changing the search or status filter."
+                        />
                     </div>
                 )}
             </section>
-        </div>
-    );
-}
-
-function SummaryCard({
-                         label,
-                         value,
-                         icon: Icon,
-                         tone = "neutral",
-                     }: {
-    label: string;
-    value: number;
-    icon: ElementType;
-    tone?: "neutral" | "danger";
-}) {
-    return (
-        <div
-            className={cn(
-                "rounded-xl border bg-card px-4 py-3 shadow-sm",
-                tone === "neutral" && "border-border",
-                tone === "danger" && "border-destructive/25 bg-destructive/10",
-            )}
-        >
-            <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                    {label}
-                </p>
-                <Icon
-                    className={cn(
-                        "size-4 shrink-0",
-                        tone === "neutral" && "text-muted-foreground",
-                        tone === "danger" && "text-destructive",
-                    )}
-                />
-            </div>
-
-            <p
-                className={cn(
-                    "mt-1 text-2xl font-semibold tracking-tight",
-                    tone === "neutral" && "text-card-foreground",
-                    tone === "danger" && "text-destructive",
-                )}
-            >
-                {value}
-            </p>
         </div>
     );
 }
@@ -453,19 +434,6 @@ function RoleBadge({role}: { role: MemberRole }) {
     );
 }
 
-function StatusBadge({status}: { status: MemberStatus }) {
-    return (
-        <span
-            className={cn(
-                "inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-                status === "ACTIVE" && "border-success/25 bg-success/10 text-success",
-                status === "DISABLED" && "border-border bg-muted text-muted-foreground",
-            )}
-        >
-            {status === "ACTIVE" ? "Active" : "Disabled"}
-        </span>
-    );
-}
 
 function getStatusFilterLabel(status: StatusFilter) {
     const labels: Record<StatusFilter, string> = {
@@ -475,22 +443,4 @@ function getStatusFilterLabel(status: StatusFilter) {
     };
 
     return labels[status];
-}
-
-function formatDate(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(date);
 }
