@@ -16,7 +16,7 @@ import {EmptyState} from "@/components/EmptyState";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {StatusBadge} from "@/components/StatusBadge";
-import {formatDate, formatTime} from "@/lib/date";
+import {formatDate, formatShortDateTime, formatTime, isSameCalendarDay} from "@/lib/date";
 
 export default function DashboardPage() {
     const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -66,7 +66,7 @@ export default function DashboardPage() {
 
 
     const upcomingReservation = dashboard?.upcomingReservations[0] ?? null;
-    const missingTripLog = dashboard?.missingTripLogs[0] ?? null;
+    const missingTripLogs = dashboard?.missingTripLogs ?? [];
     const recentTrips = dashboard?.recentTrips ?? [];
 
     return (
@@ -78,7 +78,7 @@ export default function DashboardPage() {
                 />
             </div>
 
-            {missingTripLog ? (
+            {missingTripLogs.length > 0 ? (
                 <Alert variant="warning" className="gap-3 py-2.5">
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-md">
                         <TriangleAlert className="size-5"/>
@@ -86,18 +86,20 @@ export default function DashboardPage() {
 
                     <div className="min-w-0 flex-1">
                         <p className="font-semibold">
-                            Missing trip log
+                            Missing trip log{missingTripLogs.length > 1 ? "s" : ""}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            One reservation is waiting for trip log completion.
+                            {missingTripLogs.length === 1
+                                ? "One reservation is waiting for trip log completion."
+                                : `${missingTripLogs.length} reservations are waiting for trip log completion.`}
                         </p>
                     </div>
 
                     <Link
-                        href={`/reservations/${missingTripLog.reservationId}/trip-log`}
+                        href="/reservations"
                         className="hidden rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-warning/10 sm:inline"
                     >
-                        Complete
+                        View all
                     </Link>
                 </Alert>
             ) : null}
@@ -216,40 +218,62 @@ export default function DashboardPage() {
                     <section
                         className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 
-                        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-4">
+                        <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-5 border-b-2">
                             <h2 className="text-lg font-semibold tracking-tight text-card-foreground">
-                                Reservation waiting for completion
+                                Reservations waiting for completion
                             </h2>
 
-                            {missingTripLog ? (
+                            {missingTripLogs.length > 0 ? (
                                 <StatusBadge variant="warning">
                                     Requires action
                                 </StatusBadge>
                             ) : null}
                         </div>
 
-                        {missingTripLog ? (
-                            <Link
-                                href={`/reservations/${missingTripLog.reservationId}/trip-log`}
-                                className="border-y border-border px-4 py-3 transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm sm:flex sm:items-center sm:justify-between"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
-                                        <BookOpenText className="size-5 text-muted-foreground"/>
-                                    </div>
+                        {missingTripLogs.length > 0 ? (
+                            <div>
+                                {missingTripLogs.map((missingTripLog) => (
+                                    <Link
+                                        key={missingTripLog.reservationId}
+                                        href={`/reservations/${missingTripLog.reservationId}/trip-log`}
+                                        className="block border-b border-border px-4 py-3 transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm sm:flex sm:items-center sm:justify-between"
+                                    >
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                                                <BookOpenText className="size-5 text-muted-foreground"/>
+                                            </div>
 
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-card-foreground">
-                                            {missingTripLog.vehicleName}
-                                        </h3>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {formatDate(missingTripLog.date)} ·{" "}
-                                            {missingTripLog.origin} → {missingTripLog.destination}
-                                        </p>
-                                    </div>
-                                </div>
-                            </Link>
+                                            <div className="min-w-0">
+                                                <h3 className="truncate text-sm font-semibold text-card-foreground">
+                                                    {missingTripLog.vehicleName}
+                                                </h3>
+
+                                                <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                                    <span className="shrink-0">
+                                                        {formatDate(missingTripLog.date)} ·
+                                                    </span>
+
+                                                    <span
+                                                        title={missingTripLog.origin}
+                                                        className="min-w-0 truncate"
+                                                    >
+                                                        {missingTripLog.origin}
+                                                    </span>
+
+                                                    <ArrowRight className="size-3 shrink-0"/>
+
+                                                    <span
+                                                        title={missingTripLog.destination}
+                                                        className="min-w-0 truncate"
+                                                    >
+                                                        {missingTripLog.destination}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
                         ) : (
                             <div className="flex flex-1 items-center justify-center">
                                 <EmptyState
@@ -265,7 +289,7 @@ export default function DashboardPage() {
                     <section
                         className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 
-                        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-4">
+                        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-4 border-b-2">
                             <h2 className="text-lg font-semibold tracking-tight text-card-foreground">
                                 Recent trips
                             </h2>
@@ -273,21 +297,35 @@ export default function DashboardPage() {
 
                         <div className="flex flex-1 flex-col">
                             {recentTrips.length > 0 ? (
-                                <div className="divide-y divide-border">
+                                <div className="divide-y divide-b">
                                     {recentTrips.map((trip) => (
                                         <Link
                                             key={trip.tripLogId}
                                             href={`/trip-logs/${trip.tripLogId}`}
-                                            className="block p-4 border-y border-border transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm"
+                                            className="block p-4 border-b border-border transition-all hover:border-ring/40 hover:bg-muted/40 hover:shadow-sm"
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
+                                                <div className="min-w-0 flex-1">
                                                     <p className="truncate text-sm font-semibold text-card-foreground">
                                                         {trip.vehicleName}
                                                     </p>
-                                                    <p className="mt-1 text-sm text-muted-foreground">
-                                                        {trip.origin} → {trip.destination}
-                                                    </p>
+                                                    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+                                                        <span
+                                                            title={trip.origin}
+                                                            className="min-w-0 truncate"
+                                                        >
+                                                            {trip.origin}
+                                                        </span>
+
+                                                        <ArrowRight className="size-3.5 shrink-0"/>
+
+                                                        <span
+                                                            title={trip.destination}
+                                                            className="min-w-0 truncate text-right"
+                                                        >
+                                                            {trip.destination}
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 <p className="shrink-0 text-xs text-muted-foreground">
@@ -335,17 +373,6 @@ function formatDay(value: string) {
     }).format(new Date(value));
 }
 
-function isSameCalendarDay(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-
-    return (
-        start.getFullYear() === end.getFullYear() &&
-        start.getMonth() === end.getMonth() &&
-        start.getDate() === end.getDate()
-    );
-}
-
 function formatDateRangeMonth(startValue: string, endValue: string) {
     const start = new Date(startValue);
     const end = new Date(endValue);
@@ -366,13 +393,4 @@ function formatDateRangeMonth(startValue: string, endValue: string) {
     }
 
     return `${startMonth}–${endMonth}`;
-}
-
-function formatShortDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
 }

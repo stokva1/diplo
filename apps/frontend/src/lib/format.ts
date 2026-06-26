@@ -1,5 +1,6 @@
-const csNumberFormatter = new Intl.NumberFormat("cs-CZ");
-const czkFormatter = new Intl.NumberFormat("cs-CZ", {
+const numberFormatter = new Intl.NumberFormat("en-GB");
+
+const czkFormatter = new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "CZK",
     maximumFractionDigits: 0,
@@ -10,7 +11,7 @@ export function formatNumber(value?: number | null) {
         return "—";
     }
 
-    return csNumberFormatter.format(value);
+    return numberFormatter.format(value);
 }
 
 export function formatKm(value?: number | null) {
@@ -35,7 +36,10 @@ export function formatCurrency(value?: number | string | null) {
     return czkFormatter.format(numericValue);
 }
 
-export function formatBoolean(value?: boolean | null, labels: { true: string; false: string } = { true: "Ano", false: "Ne" }) {
+export function formatBoolean(
+    value?: boolean | null,
+    labels: { true: string; false: string } = {true: "Yes", false: "No"},
+) {
     if (value === null || value === undefined) {
         return "—";
     }

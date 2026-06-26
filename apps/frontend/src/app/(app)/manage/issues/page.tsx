@@ -22,6 +22,7 @@ import {Alert} from "@/components/Alert";
 import {FilterBar} from "@/components/FilterBar";
 import {LoadingState} from "@/components/LoadingState";
 import {StatCard} from "@/components/StatCard";
+import {formatDateTime} from "@/lib/date";
 
 type IssueStatus = "OPEN" | "RESOLVED";
 type StatusFilter = "ALL" | IssueStatus;
@@ -340,7 +341,7 @@ export default function IssuesPage() {
 function IssueRow({issue}: { issue: IssueListItem }) {
     return (
         <Link
-            href={`/apps/frontend/src/app/(app)/manage/issues/${issue.id}`}
+            href={`/manage/issues/${issue.id}`}
             className="grid grid-cols-1 gap-4 px-5 py-4 transition-colors hover:bg-muted/40 lg:grid-cols-[1.5fr_1fr]"
         >
             <div className="flex min-w-0 items-start gap-3">
@@ -400,14 +401,4 @@ function getStatusFilterLabel(status: StatusFilter) {
     };
 
     return labels[status];
-}
-
-function formatDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
 }

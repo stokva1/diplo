@@ -19,7 +19,8 @@ import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {StatusBadge} from "@/components/StatusBadge";
-import {formatDate, formatTime} from "@/lib/date";
+import {formatDateTime, formatDateTimeRange} from "@/lib/date";
+import {formatKm} from "@/lib/format";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
 
@@ -245,8 +246,7 @@ export default function ReservationDetailPage() {
                             <Detail
                                 icon={CalendarDays}
                                 label="When"
-                                value={formatDateRange(reservation.startAt, reservation.endAt)}
-                                description={formatTimeRange(reservation.startAt, reservation.endAt)}
+                                value={formatDateTimeRange(reservation.startAt, reservation.endAt)}
                             />
 
                             <Detail
@@ -352,7 +352,7 @@ export default function ReservationDetailPage() {
                             <div className="p-5">
                                 <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
                                     <p className="text-sm font-medium text-card-foreground">
-                                        Completed {formatSimpleDateTime(reservation.tripLog.completedAt)}
+                                        Completed {formatDateTime(reservation.tripLog.completedAt)}
                                     </p>
 
                                     {reservation.tripLog.distanceKm != null ? (
@@ -367,6 +367,17 @@ export default function ReservationDetailPage() {
                                 <EmptyState
                                     title="No trip log yet"
                                     description="The trip log can be completed after the reservation ends."
+                                    action={
+                                        reservation.status === "FINISHED" ? (
+                                            <Link
+                                                href={`/reservations/${reservation.id}/trip-log`}
+                                                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
+                                            >
+                                                <FileText className="size-4"/>
+                                                Complete trip log
+                                            </Link>
+                                        ) : undefined
+                                    }
                                 />
                             </div>
                         )}
@@ -408,7 +419,7 @@ export default function ReservationDetailPage() {
                                         </div>
 
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            {formatSimpleDateTime(issue.createdAt)}
+                                            {formatDateTime(issue.createdAt)}
                                         </p>
                                     </div>
                                 ))}
@@ -467,54 +478,4 @@ function canCancelReservation(reservation: ReservationDetail) {
     }
 
     return new Date(reservation.startAt).getTime() > Date.now();
-}
-
-function formatDateRange(startValue: string, endValue: string) {
-    if (isSameCalendarDay(startValue, endValue)) {
-        return formatDate(startValue);
-    }
-
-    return `${formatDate(startValue)} – ${formatDate(endValue)}`;
-}
-
-function formatTimeRange(startValue: string, endValue: string) {
-    if (isSameCalendarDay(startValue, endValue)) {
-        return `${formatTime(startValue)}–${formatTime(endValue)}`;
-    }
-
-    return `${formatShortDateTime(startValue)} – ${formatShortDateTime(endValue)}`;
-}
-
-function formatSimpleDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function formatShortDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function formatKm(value: number) {
-    return `${new Intl.NumberFormat("en-GB").format(value)} km`;
-}
-
-function isSameCalendarDay(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-
-    return (
-        start.getFullYear() === end.getFullYear() &&
-        start.getMonth() === end.getMonth() &&
-        start.getDate() === end.getDate()
-    );
 }

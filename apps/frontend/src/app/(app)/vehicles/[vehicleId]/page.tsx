@@ -22,7 +22,8 @@ import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {StatusBadge} from "@/components/StatusBadge";
-import {formatDate, formatTime} from "@/lib/date";
+import {formatDateTime, formatDateTimeRange} from "@/lib/date";
+import {formatKm} from "@/lib/format";
 
 type VehicleStatus = "ACTIVE" | "UNAVAILABLE" | "ARCHIVED";
 
@@ -57,6 +58,7 @@ type VehicleDetail = {
 
 type ServiceEventListItem = {
     id: string;
+    status: "ACTIVE" | "CANCELLED";
     title: string;
     description?: string | null;
     startAt: string;
@@ -164,7 +166,11 @@ export default function VehicleDetailPage() {
                     ]);
 
                 setVehicle(vehicleResponse);
-                setServiceEvents(serviceEventsResponse.data);
+                setServiceEvents(
+                    serviceEventsResponse.data.filter(
+                        (serviceEvent) => serviceEvent.status === "ACTIVE",
+                    ),
+                );
                 setIssues(issuesResponse.data);
                 setReservations(reservationsResponse.data);
             } catch (error) {
@@ -330,8 +336,8 @@ export default function VehicleDetailPage() {
                             {issues.map((issue) => (
                                 <Link
                                     key={issue.id}
-                                    href={`/apps/frontend/src/app/(app)/manage/issues/${issue.id}`}
-                                    className="block px-5 py-4 transition-colors hover:bg-muted/40"
+                                    href={`/manage/issues/${issue.id}`}
+                                    className="block px-5 py-4 border-b transition-colors hover:bg-muted/40"
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <p className="line-clamp-2 break-words text-sm font-medium text-card-foreground">
@@ -368,8 +374,8 @@ export default function VehicleDetailPage() {
                             {serviceEvents.map((event) => (
                                 <Link
                                     key={event.id}
-                                    href={`/service-events/${event.id}`}
-                                    className="block px-5 py-4 transition-colors hover:bg-muted/40"
+                                    href={`/vehicles/${vehicle.id}/service-events/${event.id}`}
+                                    className="block px-5 py-4 border-b transition-colors hover:bg-muted/40"
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -381,7 +387,7 @@ export default function VehicleDetailPage() {
                                                 {event.title}
                                             </p>
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                {formatDateRange(event.startAt, event.endAt)}
+                                                {formatDateTimeRange(event.startAt, event.endAt)}
                                             </p>
                                         </div>
                                     </div>
@@ -407,7 +413,7 @@ export default function VehicleDetailPage() {
                                 <Link
                                     key={reservation.id}
                                     href={`/reservations/${reservation.id}`}
-                                    className="block px-5 py-4 transition-colors hover:bg-muted/40"
+                                    className="block px-5 py-4 border-b transition-colors hover:bg-muted/40"
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -419,7 +425,7 @@ export default function VehicleDetailPage() {
                                                 {reservation.origin} → {reservation.destination}
                                             </p>
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                {formatDateRange(reservation.startAt, reservation.endAt)}
+                                                {formatDateTimeRange(reservation.startAt, reservation.endAt)}
                                             </p>
                                         </div>
                                     </div>
@@ -552,7 +558,7 @@ function Panel({
 }) {
     return (
         <section className="flex min-h-55 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+            <div className="flex items-start justify-between gap-3 border-b-2 border-border px-5 py-4">
                 <div className="min-w-0">
                     <h2 className="text-base font-semibold text-card-foreground">
                         {title}
@@ -587,35 +593,3 @@ const fuelTypeLabels: Record<FuelType, string> = {
     OTHER: "Other",
 };
 
-function formatKm(value: number) {
-    return `${new Intl.NumberFormat("en-GB").format(value)} km`;
-}
-
-function formatDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function formatDateRange(startValue: string, endValue: string) {
-    if (isSameCalendarDay(startValue, endValue)) {
-        return `${formatDate(startValue)}, ${formatTime(startValue)}–${formatTime(endValue)}`;
-    }
-
-    return `${formatDateTime(startValue)} – ${formatDateTime(endValue)}`;
-}
-
-function isSameCalendarDay(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-
-    return (
-        start.getFullYear() === end.getFullYear() &&
-        start.getMonth() === end.getMonth() &&
-        start.getDate() === end.getDate()
-    );
-}

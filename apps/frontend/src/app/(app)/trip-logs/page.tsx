@@ -20,7 +20,8 @@ import {Alert} from "@/components/Alert";
 import {FilterBar, FilterField} from "@/components/FilterBar";
 import {LoadingState} from "@/components/LoadingState";
 import {StatCard} from "@/components/StatCard";
-import {formatDate, formatTime} from "@/lib/date";
+import {formatCompactDateTimeRange, formatDate} from "@/lib/date";
+import {formatCurrency, formatKm} from "@/lib/format";
 
 type TripLogListItem = {
     id: string;
@@ -426,7 +427,7 @@ export default function TripLogsPage() {
                             {logs.map((log) => (
                                 <Link
                                     key={log.id}
-                                    href={`/reservations/${log.reservationId}`}
+                                    href={`/trip-logs/${log.id}`}
                                     className="group grid gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[150px_1.1fr_1.5fr_120px_130px] md:items-center"
                                 >
                                     <div className="flex items-center gap-3">
@@ -439,7 +440,7 @@ export default function TripLogsPage() {
                                                 {formatDate(log.startAt)}
                                             </p>
                                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                                {formatTripTimeRange(log.startAt, log.endAt)}
+                                                {formatCompactDateTimeRange(log.startAt, log.endAt)}
                                             </p>
                                         </div>
                                     </div>
@@ -489,60 +490,6 @@ export default function TripLogsPage() {
             </section>
         </div>
     );
-}
-
-function formatKm(value: number) {
-    return `${new Intl.NumberFormat("en-GB").format(value)} km`;
-}
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat("en-GB", {
-        style: "currency",
-        currency: "CZK",
-        maximumFractionDigits: 0,
-    }).format(value);
-}
-
-function formatShortDateTime(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(date);
-}
-
-function isSameCalendarDay(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-
-    return (
-        start.getFullYear() === end.getFullYear() &&
-        start.getMonth() === end.getMonth() &&
-        start.getDate() === end.getDate()
-    );
-}
-
-function formatTripTimeRange(startValue?: string | null, endValue?: string | null) {
-    if (!startValue || !endValue) {
-        return "—";
-    }
-
-    if (isSameCalendarDay(startValue, endValue)) {
-        return `${formatTime(startValue)}–${formatTime(endValue)}`;
-    }
-
-    return `${formatShortDateTime(startValue)} – ${formatShortDateTime(endValue)}`;
 }
 
 function getFileNameFromContentDisposition(value: string | null) {

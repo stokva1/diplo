@@ -18,7 +18,7 @@ import {cn} from "@/lib/utils";
 import {EmptyState} from "@/components/EmptyState";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
-import {formatTime} from "@/lib/date";
+import {formatDateTimeRange} from "@/lib/date";
 
 type AvailableVehicle = {
     id: string;
@@ -445,7 +445,7 @@ export default function NewReservationPage() {
                                 Select vehicle
                             </h2>
                             <p className="mt-0.5 text-sm text-muted-foreground">
-                                Available for {formatReservationRange(startAt, endAt)}.
+                                Available for {formatDateTimeRange(startAt, endAt)}.
                             </p>
                         </div>
 
@@ -606,7 +606,7 @@ export default function NewReservationPage() {
                     </div>
 
                     <dl className="mt-4 divide-y divide-border">
-                        <SummaryRow label="Date & time" value={formatReservationRange(startAt, endAt)}/>
+                        <SummaryRow label="Date & time" value={formatDateTimeRange(startAt, endAt)}/>
                         <SummaryRow label="Origin" value={form.origin}/>
                         <SummaryRow label="Destination" value={form.destination}/>
                         <SummaryRow label="Purpose" value={form.purpose}/>
@@ -685,46 +685,6 @@ function buildDateTime(date: string, time: string) {
     }
 
     return new Date(`${date}T${time}`).toISOString();
-}
-
-function formatReservationRange(startValue?: string, endValue?: string) {
-    if (!startValue || !endValue) {
-        return "selected time window";
-    }
-
-    if (isSameCalendarDay(startValue, endValue)) {
-        return `${formatShortDate(startValue)}, ${formatTime(startValue)}–${formatTime(endValue)}`;
-    }
-
-    return `${formatShortDateTime(startValue)} – ${formatShortDateTime(endValue)}`;
-}
-
-function formatShortDate(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(value));
-}
-
-function formatShortDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function isSameCalendarDay(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-
-    return (
-        start.getFullYear() === end.getFullYear() &&
-        start.getMonth() === end.getMonth() &&
-        start.getDate() === end.getDate()
-    );
 }
 
 function normalizeDateValue(value: string, minDate: string) {

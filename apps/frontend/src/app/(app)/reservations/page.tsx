@@ -17,7 +17,7 @@ import {EmptyState} from "@/components/EmptyState";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {StatusBadge} from "@/components/StatusBadge";
-import {formatTime} from "@/lib/date";
+import {formatCompactDateTimeRange, formatRelativeDate} from "@/lib/date";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
 
@@ -337,7 +337,7 @@ export default function ReservationsPage() {
                                             {formatRelativeDate(reservation.startAt)}
                                         </p>
                                         <p className="mt-0.5 whitespace-nowrap text-xs leading-5 text-muted-foreground">
-                                            {formatReservationRange(
+                                            {formatCompactDateTimeRange(
                                                 reservation.startAt,
                                                 reservation.endAt,
                                             )}
@@ -359,72 +359,6 @@ export default function ReservationsPage() {
     );
 }
 
-
-function formatRelativeDate(value: string) {
-    const date = new Date(value);
-    const today = new Date();
-
-    const dateOnly = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-    );
-    const todayOnly = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-    );
-
-    const diffDays = Math.round(
-        (dateOnly.getTime() - todayOnly.getTime()) / 86_400_000,
-    );
-
-    if (diffDays === 0) {
-        return "Today";
-    }
-
-    if (diffDays === 1) {
-        return "Tomorrow";
-    }
-
-    if (diffDays === -1) {
-        return "Yesterday";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(date);
-}
-
-function formatReservationRange(startValue: string, endValue: string) {
-    if (isSameCalendarDay(startValue, endValue)) {
-        return `${formatTime(startValue)}–${formatTime(endValue)}`;
-    }
-
-    return `${formatShortDateTime(startValue)} – ${formatShortDateTime(endValue)}`;
-}
-
-function formatShortDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
-}
-
-function isSameCalendarDay(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-
-    return (
-        start.getFullYear() === end.getFullYear() &&
-        start.getMonth() === end.getMonth() &&
-        start.getDate() === end.getDate()
-    );
-}
 
 function getSortValue(reservation: ReservationListItem, field: SortField) {
     if (field === "createdAt") {

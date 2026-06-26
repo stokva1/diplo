@@ -1,4 +1,4 @@
-import {Controller, Get, Query, Req, UseGuards} from '@nestjs/common';
+import {Controller, Get, Param, Query, Req, UseGuards} from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TripLogsService } from './trip-logs.service';
@@ -33,5 +33,13 @@ export class TripLogsController {
         @Query() query: FindMissingTripLogsQueryDto,
     ) {
         return this.tripLogsService.findMissing(request.user, query);
+    }
+
+    @Get(':tripLogId')
+    findOne(
+        @Req() request: AuthenticatedRequest,
+        @Param('tripLogId') tripLogId: string,
+    ) {
+        return this.tripLogsService.findOne(request.user, tripLogId);
     }
 }

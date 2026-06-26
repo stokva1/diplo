@@ -10,7 +10,7 @@ import {
     Users,
     Settings,
     House,
-    type LucideIcon,
+    type LucideIcon, Wrench,
 } from "lucide-react";
 import {cn} from "@/lib/utils";
 import type {Role} from "@/lib/types";
@@ -66,6 +66,12 @@ const sections: NavSection[] = [
                 icon: TriangleAlert,
                 roles: ["VEHICLE_MANAGER", "ADMIN"],
             },
+            {
+                href: "/service-events",
+                label: "Service events",
+                icon: Wrench,
+                roles: ["VEHICLE_MANAGER", "ADMIN"]
+            }
         ],
     },
     {

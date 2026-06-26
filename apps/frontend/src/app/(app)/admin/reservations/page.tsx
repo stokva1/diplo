@@ -25,7 +25,7 @@ import {FilterBar, FilterField} from "@/components/FilterBar";
 import {LoadingState} from "@/components/LoadingState";
 import {StatCard} from "@/components/StatCard";
 import {StatusBadge} from "@/components/StatusBadge";
-import {formatDate, formatTime} from "@/lib/date";
+import {formatCompactDateTimeRange, formatDate} from "@/lib/date";
 
 type ReservationStatus = "ACTIVE" | "FINISHED" | "CANCELLED";
 type StatusFilter = "ALL" | ReservationStatus;
@@ -473,7 +473,7 @@ export default function AdminReservationsPage() {
                                             {formatDate(reservation.startAt)}
                                         </p>
                                         <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {formatReservationTimeRange(
+                                            {formatCompactDateTimeRange(
                                                 reservation.startAt,
                                                 reservation.endAt,
                                             )}
@@ -585,49 +585,4 @@ function getMissingTripLogFilterLabel(value: MissingTripLogFilter) {
     };
 
     return labels[value];
-}
-
-function formatShortDateTime(value?: string | null) {
-    if (!value) {
-        return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(date);
-}
-
-function isSameCalendarDay(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-
-    return (
-        start.getFullYear() === end.getFullYear() &&
-        start.getMonth() === end.getMonth() &&
-        start.getDate() === end.getDate()
-    );
-}
-
-function formatReservationTimeRange(
-    startValue?: string | null,
-    endValue?: string | null,
-) {
-    if (!startValue || !endValue) {
-        return "—";
-    }
-
-    if (isSameCalendarDay(startValue, endValue)) {
-        return `${formatTime(startValue)}–${formatTime(endValue)}`;
-    }
-
-    return `${formatShortDateTime(startValue)} – ${formatShortDateTime(endValue)}`;
 }

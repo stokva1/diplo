@@ -250,6 +250,59 @@ export class TripLogsService {
         };
     }
 
+    async findOne(
+        currentUser: CurrentUser,
+        tripLogId: string,
+    ) {
+        const tripLog = await this.prisma.tripLog.findFirst({
+            where: {
+                id: tripLogId,
+                reservation: {
+                    vehicle: {
+                        organizationId: currentUser.organizationId,
+                    },
+                },
+            },
+            include: {
+                reservation: {
+                    include: {
+                        vehicle: true,
+                        membership: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                    },
+                },
+                completedByMembership: {
+                    include: {
+                        user: true,
+                    },
+                },
+                refuelingReceiptFile: true,
+            },
+        });
+
+        if (!tripLog) {
+            throw new NotFoundException('Trip log not found.');
+        }
+
+        const isOwner =
+            tripLog.reservation.membershipId === currentUser.membershipId;
+
+        const isVehicleManager =
+            tripLog.reservation.vehicle.managerMembershipId ===
+            currentUser.membershipId;
+
+        const isAdmin = currentUser.role === 'ADMIN';
+
+        if (!isOwner && !isVehicleManager && !isAdmin) {
+            throw new ForbiddenException('You cannot view this trip log.');
+        }
+
+        return this.toTripLogResponse(tripLog);
+    }
+
     private toTripLogResponse(tripLog: any) {
         return {
             id: tripLog.id,

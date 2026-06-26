@@ -22,6 +22,7 @@ import {FilterBar} from "@/components/FilterBar";
 import {LoadingState} from "@/components/LoadingState";
 import {StatCard} from "@/components/StatCard";
 import {StatusBadge} from "@/components/StatusBadge";
+import {formatKm} from "@/lib/format";
 
 type VehicleStatus = "ACTIVE" | "UNAVAILABLE" | "ARCHIVED";
 type StatusFilter = "ALL" | VehicleStatus;
@@ -470,7 +471,3 @@ const fuelTypeLabels: Record<FuelType, string> = {
     CNG: "CNG",
     OTHER: "Other",
 };
-
-function formatKm(value: number) {
-    return `${new Intl.NumberFormat("en-GB").format(value)} km`;
-}

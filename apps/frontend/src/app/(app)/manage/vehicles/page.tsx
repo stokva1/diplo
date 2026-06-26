@@ -15,7 +15,7 @@ import {PageHeader} from "@/components/PageHeader";
 import {EmptyState} from "@/components/EmptyState";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
-import {formatDate} from "@/lib/date";
+import {formatDate, formatDateTime} from "@/lib/date";
 
 type DashboardVehicle = {
     id: string;
@@ -274,14 +274,4 @@ function VehicleAlert({
             </p>
         </div>
     );
-}
-
-function formatDateTime(value: string) {
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
 }
