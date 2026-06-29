@@ -4,13 +4,14 @@ import Link from "next/link";
 import {useEffect, useState} from "react";
 import {useParams, useRouter} from "next/navigation";
 import {
+    Archive,
     ArrowLeft,
     CalendarDays,
     Car,
     FileText,
     Fuel,
     Gauge,
-    Hash,
+    Hash, Pencil,
     TriangleAlert,
     User,
     Wrench,
@@ -24,6 +25,7 @@ import {PageHeader} from "@/components/PageHeader";
 import {StatusBadge} from "@/components/StatusBadge";
 import {formatDateTime, formatDateTimeRange} from "@/lib/date";
 import {formatKm} from "@/lib/format";
+import {MeResponse} from "@/types/api";
 
 type VehicleStatus = "ACTIVE" | "UNAVAILABLE" | "ARCHIVED";
 
@@ -135,6 +137,10 @@ export default function VehicleDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
+
     useEffect(() => {
         async function loadVehicleDetail() {
             const token = localStorage.getItem("accessToken");
@@ -148,24 +154,31 @@ export default function VehicleDetailPage() {
             setError(null);
 
             try {
-                const [vehicleResponse, serviceEventsResponse, issuesResponse, reservationsResponse] =
-                    await Promise.all([
+                const [
+                    vehicleResponse,
+                    serviceEventsResponse,
+                    issuesResponse,
+                    reservationsResponse,
+                    meResponse,
+                ] = await Promise.all([
                         apiRequest<VehicleDetail>(`/vehicles/${vehicleId}`, {token}),
                         apiRequest<ServiceEventsResponse>(
-                            `/vehicles/${vehicleId}/service-events?page=1&limit=5`,
+                            `/vehicles/${vehicleId}/service-events?page=1&limit=100`,
                             {token},
                         ),
                         apiRequest<IssuesResponse>(
-                            `/issues?scope=managed&vehicleId=${vehicleId}&page=1&limit=5`,
+                            `/issues?scope=managed&vehicleId=${vehicleId}&page=1&limit=100`,
                             {token},
                         ),
                         apiRequest<ReservationsResponse>(
-                            `/reservations?scope=managed&vehicleId=${vehicleId}&page=1&limit=5&sort=-startAt`,
+                            `/reservations?scope=managed&vehicleId=${vehicleId}&page=1&limit=100&sort=-startAt`,
                             {token},
                         ),
+                        apiRequest<MeResponse>("/me", {token}),
                     ]);
 
                 setVehicle(vehicleResponse);
+                setIsAdmin(meResponse.member.role === "ADMIN");
                 setServiceEvents(
                     serviceEventsResponse.data.filter(
                         (serviceEvent) => serviceEvent.status === "ACTIVE",
@@ -186,6 +199,40 @@ export default function VehicleDetailPage() {
 
         loadVehicleDetail();
     }, [vehicleId]);
+
+    async function handleArchive() {
+        const token = localStorage.getItem("accessToken");
+
+        if (!token || !vehicle) {
+            router.replace("/login");
+            return;
+        }
+
+        setError(null);
+        setIsArchiving(true);
+
+        try {
+            await apiRequest(`/vehicles/${vehicle.id}/archive`, {
+                method: "POST",
+                token,
+            });
+
+            setVehicle({
+                ...vehicle,
+                status: "ARCHIVED",
+            });
+
+            setShowArchiveConfirm(false);
+        } catch (error) {
+            setError(
+                error instanceof Error
+                    ? error.message
+                    : "Vehicle could not be archived.",
+            );
+        } finally {
+            setIsArchiving(false);
+        }
+    }
 
     if (isLoading) {
         return <LoadingState label="Loading vehicle detail..." />;
@@ -218,12 +265,34 @@ export default function VehicleDetailPage() {
                     title={vehicle.name}
                     description={`${vehicle.brand} ${vehicle.model} · ${vehicle.licensePlate}`}
                 />
-                <StatusBadge
-                    size="md"
-                    variant={vehicleStatusVariants[vehicle.status]}
-                >
-                    {vehicleStatusLabels[vehicle.status]}
-                </StatusBadge>
+                <div className="flex shrink-0 items-center gap-2">
+                    <StatusBadge
+                        size="md"
+                        variant={vehicleStatusVariants[vehicle.status]}
+                    >
+                        {vehicleStatusLabels[vehicle.status]}
+                    </StatusBadge>
+
+                    {isAdmin && vehicle.status !== "ARCHIVED" ? (
+                        <div className="flex justify-between gap-2">
+                            <Link
+                                href={`/vehicles/${vehicle.id}/edit`}
+                                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                            >
+                                <Pencil className="size-4"/>
+                                Edit
+                            </Link>
+                            <button
+                                type="button"
+                                onClick={() => setShowArchiveConfirm(true)}
+                                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+                            >
+                                <Archive className="size-4"/>
+                                Archive
+                            </button>
+                        </div>
+                    ) : null}
+                </div>
 
             </div>
 
@@ -329,7 +398,6 @@ export default function VehicleDetailPage() {
                     title="Reported issues"
                     description="Latest issues connected to this vehicle."
                     count={issues.length}
-                    href={`/issues?vehicleId=${vehicle.id}`}
                 >
                     {issues.length > 0 ? (
                         <div className="divide-y divide-border">
@@ -367,7 +435,6 @@ export default function VehicleDetailPage() {
                     title="Service events"
                     description="Latest service records and planned maintenance."
                     count={serviceEvents.length}
-                    href={`/vehicles/${vehicle.id}/service-events`}
                 >
                     {serviceEvents.length > 0 ? (
                         <div className="divide-y divide-border">
@@ -403,9 +470,8 @@ export default function VehicleDetailPage() {
 
                 <Panel
                     title="Reservations"
-                    description="Recent and upcoming reservations for this vehicle."
+                    description="Latest reservations for this vehicle."
                     count={reservations.length}
-                    href={`/reservations?vehicleId=${vehicle.id}`}
                 >
                     {reservations.length > 0 ? (
                         <div className="divide-y divide-border">
@@ -439,6 +505,58 @@ export default function VehicleDetailPage() {
                     )}
                 </Panel>
             </div>
+            {vehicle.status !== "ARCHIVED" && showArchiveConfirm ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="archive-vehicle-title"
+                >
+                    <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
+                        <div className="flex items-start gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                                <Archive className="size-5 text-destructive"/>
+                            </div>
+
+                            <div>
+                                <h2
+                                    id="archive-vehicle-title"
+                                    className="text-base font-semibold text-card-foreground"
+                                >
+                                    Archive vehicle?
+                                </h2>
+
+                                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                                    {vehicle.name} will no longer be available for new
+                                    reservations. Any future reservations for this vehicle
+                                    will be cancelled.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowArchiveConfirm(false)}
+                                disabled={isArchiving}
+                                className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleArchive}
+                                disabled={isArchiving}
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-medium text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Archive className="size-4"/>
+                                {isArchiving ? "Archiving..." : "Archive vehicle"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -546,14 +664,11 @@ function SmallStat({
 function Panel({
                    title,
                    description,
-                   count,
-                   href,
                    children,
                }: {
     title: string;
     description: string;
     count: number;
-    href: string;
     children: React.ReactNode;
 }) {
     return (
@@ -567,13 +682,6 @@ function Panel({
                         {description}
                     </p>
                 </div>
-
-                <Link
-                    href={href}
-                    className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                    View all
-                </Link>
             </div>
 
             <div className="max-h-[22rem] flex-1 overflow-y-auto">

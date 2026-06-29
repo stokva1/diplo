@@ -6,7 +6,7 @@ import {
     ArrowRight,
     BookOpenText,
     Car,
-    CheckCircle2,
+    CheckCircle2, Plus,
     TriangleAlert,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
@@ -198,15 +198,16 @@ export default function DashboardPage() {
                                 </Link>
                             </div>
                         ) : (
-                            <div className="flex flex-1 items-center justify-center">
+                            <div className="flex flex-1 items-center justify-center p-5">
                                 <EmptyState
                                     title="No upcoming reservation"
                                     description="Create a new reservation when you need a company vehicle."
                                     action={
                                         <Link
                                             href="/reservations/new"
-                                            className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
+                                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
                                         >
+                                            <Plus className="size-4"/>
                                             Create reservation
                                         </Link>
                                     }

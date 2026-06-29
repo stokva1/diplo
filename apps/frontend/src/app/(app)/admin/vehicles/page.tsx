@@ -8,7 +8,7 @@ import {
     Car,
     Check,
     ChevronDown,
-    Gauge,
+    Gauge, Plus,
     Search,
     User,
     Wrench,
@@ -356,6 +356,13 @@ export default function AdminVehiclesPage() {
                                     </div>
                                 ) : null}
                             </div>
+                            <Link
+                                href="/admin/vehicles/new"
+                                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 sm:w-auto"
+                            >
+                                <Plus className="size-4"/>
+                                Add vehicle
+                            </Link>
                         </div>
                     </FilterBar>
                 </div>

@@ -7,12 +7,12 @@ import {
     ArrowUpAZ,
     Car,
     Check,
-    ChevronDown,
+    ChevronDown, Clock3, Mail, RefreshCw,
     Search,
     Shield,
-    User,
+    User, UserPlus,
     UserRoundX,
-    Users,
+    Users, XCircle,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {cn} from "@/lib/utils";
@@ -23,7 +23,7 @@ import {FilterBar} from "@/components/FilterBar";
 import {LoadingState} from "@/components/LoadingState";
 import {StatCard} from "@/components/StatCard";
 import {StatusBadge} from "@/components/StatusBadge";
-import {formatDate} from "@/lib/date";
+import {formatDate, formatDateTime} from "@/lib/date";
 
 type MemberRole = "ADMIN" | "MEMBER";
 type MemberStatus = "ACTIVE" | "DISABLED";
@@ -61,6 +61,20 @@ type MembersResponse = {
     };
 };
 
+type Invitation = {
+    id: string;
+    name: string;
+    email: string;
+    expiresAt: string;
+    createdAt: string;
+    acceptedAt: string | null;
+    cancelledAt: string | null;
+};
+
+type InvitationsResponse = {
+    data: Invitation[];
+};
+
 const memberStatusLabels: Record<MemberStatus, string> = {
     ACTIVE: "Active",
     DISABLED: "Disabled",
@@ -75,6 +89,13 @@ export default function AdminMembersPage() {
     const [members, setMembers] = useState<MemberListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [invitations, setInvitations] = useState<Invitation[]>([]);
+    const [isLoadingInvitations, setIsLoadingInvitations] = useState(true);
+    const [invitationsError, setInvitationsError] = useState<string | null>(null);
+
+    const [resendingInvitationId, setResendingInvitationId] = useState<string | null>(null);
+    const [cancellingInvitationId, setCancellingInvitationId] = useState<string | null>(null);
+    const [invitationToCancel, setInvitationToCancel] = useState<Invitation | null>(null);
 
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -133,6 +154,36 @@ export default function AdminMembersPage() {
         loadMembers();
     }, [search, statusFilter, sort]);
 
+    useEffect(() => {
+        async function loadPendingInvitations() {
+            const token = localStorage.getItem("accessToken");
+
+            if (!token) {
+                setIsLoadingInvitations(false);
+                return;
+            }
+
+            try {
+                const response = await apiRequest<InvitationsResponse>(
+                    "/invitations?status=PENDING",
+                    {token},
+                );
+
+                setInvitations(response.data);
+            } catch (error) {
+                setInvitationsError(
+                    error instanceof Error
+                        ? error.message
+                        : "Pending invitations could not be loaded.",
+                );
+            } finally {
+                setIsLoadingInvitations(false);
+            }
+        }
+
+        loadPendingInvitations();
+    }, []);
+
     const activeMembersCount = useMemo(
         () => members.filter((member) => member.status === "ACTIVE").length,
         [members],
@@ -147,6 +198,82 @@ export default function AdminMembersPage() {
         () => members.filter((member) => member.role === "ADMIN").length,
         [members],
     );
+
+    async function handleResendInvitation(invitationId: string) {
+        const token = localStorage.getItem("accessToken");
+
+        if (!token) {
+            return;
+        }
+
+        setInvitationsError(null);
+        setResendingInvitationId(invitationId);
+
+        try {
+            const response = await apiRequest<Invitation>(
+                `/invitations/${invitationId}/resend`,
+                {
+                    method: "POST",
+                    token,
+                },
+            );
+
+            setInvitations((current) =>
+                current.map((invitation) =>
+                    invitation.id === invitationId
+                        ? {
+                            ...invitation,
+                            expiresAt: response.expiresAt,
+                        }
+                        : invitation,
+                ),
+            );
+        } catch (error) {
+            setInvitationsError(
+                error instanceof Error
+                    ? error.message
+                    : "Invitation could not be resent.",
+            );
+        } finally {
+            setResendingInvitationId(null);
+        }
+    }
+
+    async function handleCancelInvitation() {
+        if (!invitationToCancel) {
+            return;
+        }
+
+        const token = localStorage.getItem("accessToken");
+
+        if (!token) {
+            return;
+        }
+
+        setInvitationsError(null);
+        setCancellingInvitationId(invitationToCancel.id);
+
+        try {
+            await apiRequest(`/invitations/${invitationToCancel.id}/cancel`, {
+                method: "POST",
+                token,
+            });
+
+            setInvitations((current) =>
+                current.filter((invitation) => invitation.id !== invitationToCancel.id),
+            );
+
+            setInvitationToCancel(null);
+        } catch (error) {
+            setInvitationsError(
+                error instanceof Error
+                    ? error.message
+                    : "Invitation could not be cancelled.",
+            );
+        } finally {
+            setCancellingInvitationId(null);
+        }
+    }
 
     return (
         <div className="mx-auto max-w-7xl">
@@ -314,6 +441,13 @@ export default function AdminMembersPage() {
                                     </div>
                                 ) : null}
                             </div>
+                            <Link
+                                href="/admin/members/invite"
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                            >
+                                <UserPlus className="size-4"/>
+                                Invite member
+                            </Link>
                         </div>
                     </FilterBar>
                 </div>
@@ -342,7 +476,7 @@ export default function AdminMembersPage() {
                             {members.map((member) => (
                                 <Link
                                     key={member.id}
-                                    href={`/members/${member.id}`}
+                                    href={`/admin/members/${member.id}`}
                                     className="group grid gap-3 px-5 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[1.3fr_1fr_1.4fr_130px_130px] md:items-center"
                                 >
                                     <div className="flex min-w-0 items-center gap-3">
@@ -416,6 +550,142 @@ export default function AdminMembersPage() {
                     </div>
                 )}
             </section>
+            <section className="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+                    <div>
+                        <h2 className="text-base font-semibold text-card-foreground">
+                            Pending invitations
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Invitations waiting for a member to join the organization.
+                        </p>
+                    </div>
+                </div>
+
+                {isLoadingInvitations ? (
+                    <LoadingState
+                        variant="inline"
+                        label="Loading invitations..."
+                    />
+                ) : invitationsError ? (
+                    <Alert variant="error" className="m-5">
+                        {invitationsError}
+                    </Alert>
+                ) : invitations.length > 0 ? (
+                    <div className="divide-y divide-border">
+                        {invitations.map((invitation) => (
+                            <div
+                                key={invitation.id}
+                                className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                        <Mail className="size-5 text-muted-foreground"/>
+                                    </div>
+
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-card-foreground">
+                                            {invitation.name}
+                                        </p>
+
+                                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                            {invitation.email}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 sm:items-end">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Clock3 className="size-3.5 shrink-0"/>
+                                        Expires {formatDateTime(invitation.expiresAt)}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleResendInvitation(invitation.id)}
+                                            disabled={resendingInvitationId === invitation.id}
+                                            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <RefreshCw className="size-3.5"/>
+                                            {resendingInvitationId === invitation.id ? "Sending..." : "Resend"}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setInvitationToCancel(invitation)}
+                                            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-destructive/25 bg-destructive/5 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+                                        >
+                                            <XCircle className="size-3.5"/>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="p-5">
+                        <EmptyState
+                            title="No pending invitations"
+                            description="New invitations will appear here until they are accepted."
+                        />
+                    </div>
+                )}
+            </section>
+            {invitationToCancel ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="cancel-invitation-title"
+                >
+                    <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
+                        <div className="flex items-start gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                                <XCircle className="size-5 text-destructive"/>
+                            </div>
+
+                            <div>
+                                <h2
+                                    id="cancel-invitation-title"
+                                    className="text-base font-semibold text-card-foreground"
+                                >
+                                    Cancel invitation?
+                                </h2>
+
+                                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                                    {invitationToCancel.name} will no longer be able to use
+                                    the invitation sent to {invitationToCancel.email}.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setInvitationToCancel(null)}
+                                disabled={cancellingInvitationId === invitationToCancel.id}
+                                className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Keep invitation
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleCancelInvitation}
+                                disabled={cancellingInvitationId === invitationToCancel.id}
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-medium text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <XCircle className="size-4"/>
+                                {cancellingInvitationId === invitationToCancel.id
+                                    ? "Cancelling..."
+                                    : "Cancel invitation"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

@@ -308,15 +308,15 @@ export class AuthService {
             },
         });
 
-        try {
-            await this.notificationsService.sendPasswordResetEmail({
+        void this.notificationsService
+            .sendPasswordResetEmail({
                 to: user.email,
                 name: user.name,
                 token,
+            })
+            .catch((error) => {
+                console.error('Password reset e-mail could not be sent.', error);
             });
-        } catch (error) {
-            console.error('Password reset e-mail could not be sent.', error);
-        }
 
         return undefined;
     }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { LoginResponse } from "@/types/api";
 import {Alert} from "@/components/Alert";
+import Link from "next/link";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -134,6 +135,15 @@ export default function LoginPage() {
                                         onChange={(event) => setPassword(event.target.value)}
                                         autoComplete="current-password"
                                     />
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <Link
+                                        href="/forgot-password"
+                                        className="text-sm font-medium text-primary transition-colors hover:underline"
+                                    >
+                                        Forgot password?
+                                    </Link>
                                 </div>
 
                                 {error ? (

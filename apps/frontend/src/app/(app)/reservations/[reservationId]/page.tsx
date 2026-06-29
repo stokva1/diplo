@@ -9,6 +9,7 @@ import {
     Car,
     FileText,
     MapPin,
+    Pencil,
     TriangleAlert,
     User,
     XCircle,
@@ -88,6 +89,7 @@ export default function ReservationDetailPage() {
     const [reservation, setReservation] = useState<ReservationDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -128,14 +130,6 @@ export default function ReservationDetailPage() {
             return;
         }
 
-        const confirmed = window.confirm(
-            "Are you sure you want to cancel this reservation?",
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
         const token = localStorage.getItem("accessToken");
 
         if (!token) {
@@ -159,6 +153,8 @@ export default function ReservationDetailPage() {
                 ...reservation,
                 status: "CANCELLED",
             });
+
+            setShowCancelConfirm(false);
         } catch (error) {
             setError(
                 error instanceof Error
@@ -198,6 +194,7 @@ export default function ReservationDetailPage() {
     }
 
     const canCancel = canCancelReservation(reservation);
+    const canEdit = canCancelReservation(reservation);
     const canReportIssue = reservation.status !== "CANCELLED";
 
     return (
@@ -217,13 +214,23 @@ export default function ReservationDetailPage() {
                     description={`${reservation.vehicle.name} · ${reservation.vehicle.licensePlate}`}
                 />
 
-                <div className="sm:pt-8">
+                <div className="flex shrink-0 items-center gap-2 sm:pt-8">
                     <StatusBadge
                         size="md"
                         variant={reservationStatusVariants[reservation.status]}
                     >
                         {reservationStatusLabels[reservation.status]}
                     </StatusBadge>
+
+                    {canEdit ? (
+                        <Link
+                            href={`/reservations/${reservation.id}/edit`}
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                        >
+                            <Pencil className="size-4"/>
+                            Edit
+                        </Link>
+                    ) : null}
                 </div>
             </div>
 
@@ -319,7 +326,7 @@ export default function ReservationDetailPage() {
                                 {canCancel ? (
                                     <button
                                         type="button"
-                                        onClick={handleCancelReservation}
+                                        onClick={() => setShowCancelConfirm(true)}
                                         disabled={isCancelling}
                                         className="inline-flex h-9 w-full items-center justify-start gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
                                     >
@@ -363,7 +370,7 @@ export default function ReservationDetailPage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex flex-1 p-5">
+                            <div className="flex flex-1 items-center justify-center p-5">
                                 <EmptyState
                                     title="No trip log yet"
                                     description="The trip log can be completed after the reservation ends."
@@ -399,8 +406,8 @@ export default function ReservationDetailPage() {
                         {reservation.issues.length > 0 ? (
                             <span
                                 className="inline-flex items-center rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">
-                    {reservation.issues.length}
-                </span>
+                                {reservation.issues.length}
+                            </span>
                         ) : null}
                     </div>
 
@@ -425,7 +432,7 @@ export default function ReservationDetailPage() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="flex flex-1 p-5">
+                            <div className="flex flex-1 items-center justify-center p-5">
                                 <EmptyState
                                     title="No issues reported"
                                     description="Any vehicle problems connected to this trip will appear here."
@@ -435,6 +442,58 @@ export default function ReservationDetailPage() {
                     </div>
                 </section>
             </div>
+            {showCancelConfirm ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="cancel-reservation-title"
+                >
+                    <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
+                        <div className="flex items-start gap-3">
+                            <div
+                                className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                                <XCircle className="size-5 text-destructive"/>
+                            </div>
+
+                            <div>
+                                <h2
+                                    id="cancel-reservation-title"
+                                    className="text-base font-semibold text-card-foreground"
+                                >
+                                    Cancel reservation?
+                                </h2>
+
+                                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                                    This reservation for {reservation.vehicle.name} will be
+                                    cancelled and the vehicle will become available again.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowCancelConfirm(false)}
+                                disabled={isCancelling}
+                                className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Keep reservation
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleCancelReservation}
+                                disabled={isCancelling}
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-medium text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <XCircle className="size-4"/>
+                                {isCancelling ? "Cancelling..." : "Cancel reservation"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

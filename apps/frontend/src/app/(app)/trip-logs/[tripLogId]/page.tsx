@@ -11,7 +11,7 @@ import {
     FileText,
     Fuel,
     Gauge,
-    MapPin,
+    MapPin, Pencil,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {Alert} from "@/components/Alert";
@@ -19,6 +19,7 @@ import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {formatDateTime, formatDateTimeRange} from "@/lib/date";
 import {formatCurrency, formatKm} from "@/lib/format";
+import {MeResponse} from "@/types/api";
 
 type TripLogDetail = {
     id: string;
@@ -58,7 +59,7 @@ type TripLogDetail = {
 };
 
 export default function TripLogDetailPage() {
-    const params = useParams<{tripLogId: string}>();
+    const params = useParams<{ tripLogId: string }>();
     const router = useRouter();
 
     const tripLogId = params.tripLogId;
@@ -66,6 +67,7 @@ export default function TripLogDetailPage() {
     const [tripLog, setTripLog] = useState<TripLogDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         async function loadTripLog() {
@@ -78,12 +80,16 @@ export default function TripLogDetailPage() {
             }
 
             try {
-                const response = await apiRequest<TripLogDetail>(
-                    `/trip-logs/${tripLogId}`,
-                    {token},
-                );
+                const [tripLogResponse, meResponse] = await Promise.all([
+                    apiRequest<TripLogDetail>(
+                        `/trip-logs/${tripLogId}`,
+                        {token},
+                    ),
+                    apiRequest<MeResponse>("/me", {token}),
+                ]);
 
-                setTripLog(response);
+                setTripLog(tripLogResponse);
+                setIsAdmin(meResponse.member.role === "ADMIN");
             } catch (error) {
                 setError(
                     error instanceof Error
@@ -133,11 +139,21 @@ export default function TripLogDetailPage() {
                 Back
             </button>
 
-            <div className="mb-6">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <PageHeader
                     title="Trip log details"
                     description="Recorded mileage, refueling and trip information."
                 />
+
+                {isAdmin ? (
+                    <Link
+                        href={`/trip-logs/${tripLog.id}/edit`}
+                        className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                        <Pencil className="size-4"/>
+                        Edit
+                    </Link>
+                ) : null}
             </div>
 
             {error ? (
@@ -167,7 +183,8 @@ export default function TripLogDetailPage() {
                         <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
                             <MapPin className="size-3.5 shrink-0"/>
 
-                            <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
+                            <div
+                                className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
                                 <span
                                     title={tripLog.origin}
                                     className="truncate"
