@@ -9,10 +9,11 @@ import {
     Check,
     TriangleAlert,
 } from "lucide-react";
-import {apiRequest} from "@/lib/api";
+import {apiRequest, uploadFile} from "@/lib/api";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
+import {PhotoPicker} from "@/components/PhotoPicker";
 
 type VehicleDetail = {
     id: string;
@@ -34,6 +35,7 @@ export default function NewVehicleIssuePage() {
 
     const [vehicle, setVehicle] = useState<VehicleDetail | null>(null);
     const [description, setDescription] = useState("");
+    const [photoFiles, setPhotoFiles] = useState<File[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -90,13 +92,22 @@ export default function NewVehicleIssuePage() {
         setIsSubmitting(true);
 
         try {
+            const uploadedPhotos = await Promise.all(
+                photoFiles.map((file) => uploadFile(file, "ISSUE_PHOTO", token)),
+            );
+
             await apiRequest<CreateIssueResponse>(
                 `/vehicles/${vehicleId}/issues`,
                 {
                     method: "POST",
                     token,
+
+
                     body: {
                         description: trimmedDescription,
+                        ...(uploadedPhotos.length > 0
+                            ? {photoFileIds: uploadedPhotos.map((photo) => photo.id)}
+                            : {}),
                     },
                 },
             );
@@ -199,12 +210,16 @@ export default function NewVehicleIssuePage() {
                     </div>
 
                     <div className="p-5">
-                        <label className="block">
-                            <span className="mb-1.5 block text-sm font-medium text-card-foreground">
+                        <div>
+                            <label
+                                htmlFor="description"
+                                className="mb-1.5 block text-sm font-medium text-card-foreground"
+                            >
                                 Description
-                            </span>
+                            </label>
 
                             <textarea
+                                id="description"
                                 rows={5}
                                 maxLength={2000}
                                 value={description}
@@ -212,7 +227,15 @@ export default function NewVehicleIssuePage() {
                                 placeholder="Describe the issue..."
                                 className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/10"
                             />
-                        </label>
+
+                            <div className="mt-5">
+                                <PhotoPicker
+                                    files={photoFiles}
+                                    onChange={setPhotoFiles}
+                                    disabled={isSubmitting}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </section>
 

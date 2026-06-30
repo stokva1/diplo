@@ -15,6 +15,7 @@ import {PasswordResetConfirmDto} from "./dto/password-reset-confirm.dto";
 import {PasswordResetRequestDto} from "./dto/password-reset-request.dto";
 import {RefreshTokenDto} from "./dto/refresh-token.dto";
 import {NotificationsService} from "../notifications/notifications.service";
+import {ChangePasswordDto} from "./dto/change-password.dto";
 
 type AccessTokenPayload = {
     sub: string;
@@ -150,7 +151,7 @@ export class AuthService {
     ): Promise<string> {
         return this.jwtService.signAsync(payload, {
             secret: process.env.JWT_ACCESS_SECRET,
-            expiresIn: '6h', //TODO: Change to like couple minutes for production
+            expiresIn: '15m', //TODO: Change to like couple minutes for production
         });
     }
 
@@ -238,6 +239,45 @@ export class AuthService {
     }
 
     async logout() {
+        return undefined;
+    }
+
+    async changePassword(userId: string, dto: ChangePasswordDto) {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            select: {
+                id: true,
+                passwordHash: true,
+            },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException("User was not found.");
+        }
+
+        const passwordMatches = await bcrypt.compare(
+            dto.currentPassword,
+            user.passwordHash,
+        );
+
+        if (!passwordMatches) {
+            throw new BadRequestException("Current password is incorrect.");
+        }
+
+        const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+
+        await this.prisma.user.update({
+            where: {
+                id: user.id,
+            },
+            data: {
+                passwordHash,
+                updatedAt: new Date(),
+            },
+        });
+
         return undefined;
     }
 

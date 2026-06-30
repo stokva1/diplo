@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import type { Role } from "@/lib/types";
 import type { MeResponse } from "@/types/api";
 import {LoadingState} from "@/components/LoadingState";
+import {clearAuthTokens} from "@/lib/auth";
 
 export default function ProtectedAppLayout({
                                                children,
@@ -23,6 +24,7 @@ export default function ProtectedAppLayout({
             const token = localStorage.getItem("accessToken");
 
             if (!token) {
+                setIsLoading(false);
                 router.replace("/login");
                 return;
             }
@@ -34,8 +36,7 @@ export default function ProtectedAppLayout({
 
                 setMe(meResponse);
             } catch {
-                localStorage.removeItem("accessToken");
-                localStorage.removeItem("refreshToken");
+                clearAuthTokens();
                 router.replace("/login");
             } finally {
                 setIsLoading(false);
@@ -54,8 +55,7 @@ export default function ProtectedAppLayout({
     }
 
     function handleLogout() {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
+        clearAuthTokens();
         router.replace("/login");
     }
 

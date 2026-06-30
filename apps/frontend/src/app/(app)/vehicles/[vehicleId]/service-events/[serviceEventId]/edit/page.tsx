@@ -11,10 +11,11 @@ import {
     CircleAlert,
     Wrench,
 } from "lucide-react";
-import {apiRequest} from "@/lib/api";
+import {apiRequest, uploadFile} from "@/lib/api";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
+import {FilePicker} from "@/components/FilePicker";
 
 type ServiceEventDetail = {
     id: string;
@@ -74,6 +75,7 @@ export default function EditServiceEventPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
 
     const [form, setForm] = useState({
         title: "",
@@ -187,6 +189,10 @@ export default function EditServiceEventPage() {
         setIsSubmitting(true);
 
         try {
+            const uploadedInvoice = invoiceFile
+                ? await uploadFile(invoiceFile, "SERVICE_INVOICE", token)
+                : null;
+
             await apiRequest<ServiceEventDetail>(
                 `/service-events/${serviceEvent.id}`,
                 {
@@ -200,6 +206,7 @@ export default function EditServiceEventPage() {
                         startAt,
                         endAt,
                         ...(cost !== undefined ? {cost} : {cost: null}),
+                        ...(uploadedInvoice ? {invoiceFileId: uploadedInvoice.id} : {}),
                     },
                 },
             );
@@ -425,6 +432,25 @@ export default function EditServiceEventPage() {
                                 />
                             </Field>
                         </div>
+                    </div>
+                </section>
+
+                <section className="rounded-xl border border-border bg-card shadow-sm">
+                    <div className="border-b border-border px-5 py-4">
+                        <h2 className="text-base font-semibold text-card-foreground">
+                            Attachment
+                        </h2>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                            Add an invoice, receipt, or other service document.
+                        </p>
+                    </div>
+
+                    <div className="p-5">
+                        <FilePicker
+                            file={invoiceFile}
+                            onChange={setInvoiceFile}
+                            disabled={isSubmitting}
+                        />
                     </div>
                 </section>
 

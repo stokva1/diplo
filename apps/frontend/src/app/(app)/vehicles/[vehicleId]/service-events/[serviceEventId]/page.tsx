@@ -16,6 +16,7 @@ import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {formatDateTime, formatDateTimeRange} from "@/lib/date";
 import {formatCurrency} from "@/lib/format";
+import {FileDownloadButton} from "@/components/FileDownloadButton";
 
 type ServiceEventDetail = {
     id: string;
@@ -296,7 +297,22 @@ export default function ServiceEventDetailPage() {
 
                         <DetailRow
                             label="Invoice"
-                            value={serviceEvent.invoiceFile?.fileName || "—"}
+                            value={
+                                serviceEvent.invoiceFile ? (
+                                    <div className="flex items-center gap-3 sm:justify-end">
+                                        <span className="min-w-0 truncate">
+                                            {serviceEvent.invoiceFile.fileName}
+                                        </span>
+
+                                        <FileDownloadButton
+                                            fileId={serviceEvent.invoiceFile.id}
+                                            fileName={serviceEvent.invoiceFile.fileName}
+                                        />
+                                    </div>
+                                ) : (
+                                    "—"
+                                )
+                            }
                         />
                     </dl>
                 </section>
@@ -350,7 +366,7 @@ function DetailRow({
                        multiline = false,
                    }: {
     label: string;
-    value: string;
+    value: React.ReactNode;
     multiline?: boolean;
 }) {
     return (

@@ -9,6 +9,7 @@ import {
     CheckCircle2,
     MapPin,
     TriangleAlert,
+    Image as ImageIcon,
 } from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {Alert} from "@/components/Alert";
@@ -16,6 +17,7 @@ import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {StatusBadge} from "@/components/StatusBadge";
 import {formatDateTime, formatDateTimeRange} from "@/lib/date";
+import {IssuePhoto} from "@/components/IssuePhoto";
 
 type IssueStatus = "OPEN" | "RESOLVED";
 
@@ -319,6 +321,40 @@ export default function IssueDetailPage() {
                         />
                     </dl>
                 </section>
+
+                {issue.photos.length > 0 ? (
+                    <section className="rounded-xl border border-border bg-card shadow-sm">
+                        <div className="border-b border-border px-5 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
+                                    <ImageIcon className="size-5 text-muted-foreground"/>
+                                </div>
+
+                                <div>
+                                    <h2 className="text-base font-semibold text-card-foreground">
+                                        Photos
+                                    </h2>
+
+                                    <p className="mt-0.5 text-sm text-muted-foreground">
+                                        {issue.photos.length === 1
+                                            ? "One photo was attached to this issue."
+                                            : `${issue.photos.length} photos were attached to this issue.`}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
+                            {issue.photos.map((photo) => (
+                                <IssuePhoto
+                                    key={photo.id}
+                                    fileId={photo.id}
+                                    fileName={photo.fileName}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
 
                 {issue.reservation ? (
                     <section className="rounded-xl border border-border bg-card shadow-sm">

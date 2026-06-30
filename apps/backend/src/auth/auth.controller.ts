@@ -1,4 +1,4 @@
-import {Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards} from '@nestjs/common';
+import {Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards} from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
@@ -8,6 +8,7 @@ import {RefreshTokenDto} from "./dto/refresh-token.dto";
 import {PasswordResetRequestDto} from "./dto/password-reset-request.dto";
 import {PasswordResetConfirmDto} from "./dto/password-reset-confirm.dto";
 import {Throttle} from "@nestjs/throttler";
+import {ChangePasswordDto} from "./dto/change-password.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -38,6 +39,17 @@ export class AuthController {
     @HttpCode(HttpStatus.NO_CONTENT)
     logout() {
         return this.authService.logout();
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post("change-password")
+    @Throttle({default: {limit: 5, ttl: 15 * 60 * 1000}})
+    @HttpCode(HttpStatus.NO_CONTENT)
+    changePassword(
+        @Req() request: AuthenticatedRequest,
+        @Body() dto: ChangePasswordDto,
+    ) {
+        return this.authService.changePassword(request.user.userId, dto);
     }
 
     @Post('refresh')

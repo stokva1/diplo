@@ -38,11 +38,13 @@ export class FilesService {
             throw error;
         }
 
+        const fileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+
         const fileAttachment = await this.prisma.fileAttachment.create({
             data: {
                 organizationId: currentUser.organizationId,
                 uploadedByMembershipId: currentUser.membershipId,
-                fileName: file.originalname,
+                fileName,
                 mimeType: file.mimetype,
                 fileSizeBytes: file.size,
                 storageKey: file.path,

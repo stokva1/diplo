@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/api";
 import { LoginResponse } from "@/types/api";
 import {Alert} from "@/components/Alert";
 import Link from "next/link";
+import {setAuthTokens} from "@/lib/auth";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -31,8 +32,10 @@ export default function LoginPage() {
                 },
             });
 
-            localStorage.setItem("accessToken", response.accessToken);
-            localStorage.setItem("refreshToken", response.refreshToken);
+            setAuthTokens({
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken,
+            });
 
             setLoginResponse(response);
             router.push("/dashboard");

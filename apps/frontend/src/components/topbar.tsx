@@ -3,6 +3,7 @@
 import {LogOut, Menu, Search, User} from "lucide-react";
 import type { Role } from "@/lib/types";
 import {useState} from "react";
+import Link from "next/link";
 
 const roleLabels: Record<Role, string> = {
     MEMBER: "Member",
@@ -17,11 +18,13 @@ export function Topbar({
                            userEmail,
                            role,
                            onLogout,
+                           onMenuClick,
                        }: {
     userName?: string;
     userEmail?: string;
     role: Role;
     onLogout: () => void;
+    onMenuClick: () => void;
 }) {
     const initials = getInitials(userName);
     const [language, setLanguage] = useState<Language>("en");
@@ -30,10 +33,11 @@ export function Topbar({
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur md:px-6">
             <button
                 type="button"
+                onClick={onMenuClick}
                 className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
                 aria-label="Open menu"
             >
-                <Menu className="size-5" />
+                <Menu className="size-5"/>
             </button>
 
             <div className="relative hidden max-w-sm flex-1 sm:block">
@@ -79,13 +83,13 @@ export function Topbar({
 
                         <div className="my-1 h-px bg-border" />
 
-                        <button
-                            type="button"
-                            className="flex w-full items-center gap-2 cursor-pointer rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        <Link
+                            href="/profile"
+                            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
-                            <User className="size-4" />
+                            <User className="size-4"/>
                             Profile
-                        </button>
+                        </Link>
 
                         <button
                             type="button"

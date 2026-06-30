@@ -11,11 +11,12 @@ import {
     MapPin,
     TriangleAlert,
 } from "lucide-react";
-import {apiRequest} from "@/lib/api";
+import {apiRequest, uploadFile} from "@/lib/api";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {formatDateTimeRange} from "@/lib/date";
+import {PhotoPicker} from "@/components/PhotoPicker";
 
 type ReservationDetail = {
     id: string;
@@ -46,6 +47,7 @@ export default function NewReservationIssuePage() {
         useState<ReservationDetail | null>(null);
 
     const [description, setDescription] = useState("");
+    const [photoFiles, setPhotoFiles] = useState<File[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,10 @@ export default function NewReservationIssuePage() {
         setIsSubmitting(true);
 
         try {
+            const uploadedPhotos = await Promise.all(
+                photoFiles.map((file) => uploadFile(file, "ISSUE_PHOTO", token)),
+            );
+
             await apiRequest<CreateIssueResponse>(
                 `/reservations/${reservationId}/issues`,
                 {
@@ -109,6 +115,9 @@ export default function NewReservationIssuePage() {
                     token,
                     body: {
                         description: trimmedDescription,
+                        ...(uploadedPhotos.length > 0
+                            ? {photoFileIds: uploadedPhotos.map((photo) => photo.id)}
+                            : {}),
                     },
                 },
             );
@@ -243,14 +252,17 @@ export default function NewReservationIssuePage() {
                 </div>
 
                 <div className="p-5">
-                    <label className="block">
-                        <span className="mb-1.5 block text-sm font-medium text-card-foreground">
+                    <div>
+                        <label
+                            htmlFor="description"
+                            className="mb-1.5 block text-sm font-medium text-card-foreground"
+                        >
                             Description
-                        </span>
+                        </label>
 
                         <textarea
                             rows={6}
-                            maxLength={1000}
+                            maxLength={2000}
                             value={description}
                             onChange={(event) =>
                                 setDescription(event.target.value)
@@ -262,7 +274,15 @@ export default function NewReservationIssuePage() {
                         <span className="mt-1.5 block text-right text-xs text-muted-foreground">
                             {description.length}/1000
                         </span>
-                    </label>
+
+                        <div className="mt-5">
+                            <PhotoPicker
+                                files={photoFiles}
+                                onChange={setPhotoFiles}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex justify-end gap-3 border-t border-border px-5 py-4">
