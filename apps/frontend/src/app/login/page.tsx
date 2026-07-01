@@ -164,6 +164,16 @@ export default function LoginPage() {
                                 </button>
                             </form>
 
+                            <p className="mt-5 text-center text-sm text-muted-foreground">
+                                New to FleetCore?{" "}
+                                <Link
+                                    href="/register"
+                                    className="font-medium text-primary transition-colors hover:underline"
+                                >
+                                    Create an organization
+                                </Link>
+                            </p>
+
                             {loginResponse ? (
                                 <Alert
                                     className="mt-5"

@@ -427,37 +427,60 @@ export class TripLogsService {
             }
         }
 
-        const updatedTripLog = await this.prisma.tripLog.update({
-            where: {
-                id: tripLog.id,
-            },
-            data: {
-                odometerStartKm: dto.odometerStartKm,
-                odometerEndKm: dto.odometerEndKm,
-                refueled: dto.refueled,
-                refuelingCost: dto.refuelingCost,
-                refuelingReceiptFileId: dto.refuelingReceiptFileId,
-                note: dto.note,
-                updatedAt: new Date(),
-            },
-            include: {
-                reservation: {
-                    include: {
-                        vehicle: true,
-                        membership: {
-                            include: {
-                                user: true,
+        const shouldReplaceReceipt =
+            dto.refuelingReceiptFileId !== undefined &&
+            dto.refuelingReceiptFileId !== tripLog.refuelingReceiptFileId;
+
+        const oldReceiptFile = shouldReplaceReceipt
+            ? tripLog.refuelingReceiptFile
+            : null;
+
+        const updatedTripLog = await this.prisma.$transaction(async (tx) => {
+            const updated = await tx.tripLog.update({
+                where: {
+                    id: tripLog.id,
+                },
+                data: {
+                    odometerStartKm: dto.odometerStartKm,
+                    odometerEndKm: dto.odometerEndKm,
+                    refueled: dto.refueled,
+                    refuelingCost: dto.refuelingCost,
+                    refuelingReceiptFileId: dto.refuelingReceiptFileId,
+                    note: dto.note,
+                    updatedAt: new Date(),
+                },
+                include: {
+                    reservation: {
+                        include: {
+                            vehicle: true,
+                            membership: {
+                                include: {
+                                    user: true,
+                                },
                             },
                         },
                     },
-                },
-                completedByMembership: {
-                    include: {
-                        user: true,
+                    completedByMembership: {
+                        include: {
+                            user: true,
+                        },
                     },
+                    refuelingReceiptFile: true,
                 },
-                refuelingReceiptFile: true,
-            },
+            });
+
+            if (oldReceiptFile) {
+                await tx.fileAttachment.update({
+                    where: {
+                        id: oldReceiptFile.id,
+                    },
+                    data: {
+                        deletedAt: new Date(),
+                    },
+                });
+            }
+
+            return updated;
         });
 
         if (

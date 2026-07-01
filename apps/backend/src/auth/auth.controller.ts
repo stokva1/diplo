@@ -9,6 +9,7 @@ import {PasswordResetRequestDto} from "./dto/password-reset-request.dto";
 import {PasswordResetConfirmDto} from "./dto/password-reset-confirm.dto";
 import {Throttle} from "@nestjs/throttler";
 import {ChangePasswordDto} from "./dto/change-password.dto";
+import {EmailVerificationConfirmDto} from "./dto/email-verification-confirm.dto";
 
 type AuthenticatedRequest = Request & {
     user: {
@@ -24,6 +25,7 @@ export class AuthController {
     constructor(private readonly authService: AuthService) {}
 
     @Post('register-organization')
+    @Throttle({ default: { limit: 3, ttl: 60 * 60 * 1000 } })
     registerOrganization(@Body() dto: RegisterOrganizationDto) {
         return this.authService.registerOrganization(dto);
     }
@@ -68,6 +70,15 @@ export class AuthController {
     @HttpCode(HttpStatus.NO_CONTENT)
     confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
         return this.authService.confirmPasswordReset(dto);
+    }
+
+    @Post("email-verification/confirm")
+    @Throttle({default: {limit: 10, ttl: 15 * 60 * 1000}})
+    @HttpCode(HttpStatus.NO_CONTENT)
+    confirmEmailVerification(
+        @Body() dto: EmailVerificationConfirmDto,
+    ) {
+        return this.authService.confirmEmailVerification(dto.token);
     }
 }
 

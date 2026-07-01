@@ -20,6 +20,7 @@ import {PageHeader} from "@/components/PageHeader";
 import {formatDateTime, formatDateTimeRange} from "@/lib/date";
 import {formatCurrency, formatKm} from "@/lib/format";
 import {MeResponse} from "@/types/api";
+import {FileDownloadButton} from "@/components/FileDownloadButton";
 
 type TripLogDetail = {
     id: string;
@@ -326,7 +327,18 @@ export default function TripLogDetailPage() {
                         {tripLog.refuelingReceiptFile ? (
                             <DetailRow
                                 label="Receipt"
-                                value={tripLog.refuelingReceiptFile.fileName}
+                                value={
+                                    <div className="flex items-center gap-3 sm:justify-end">
+                                        <span className="min-w-0 truncate">
+                                            {tripLog.refuelingReceiptFile.fileName}
+                                        </span>
+
+                                        <FileDownloadButton
+                                            fileId={tripLog.refuelingReceiptFile.id}
+                                            fileName={tripLog.refuelingReceiptFile.fileName}
+                                        />
+                                    </div>
+                                }
                             />
                         ) : null}
                     </dl>
@@ -403,7 +415,7 @@ function DetailRow({
                        emphasized = false,
                    }: {
     label: string;
-    value: string;
+    value: React.ReactNode;
     emphasized?: boolean;
 }) {
     return (

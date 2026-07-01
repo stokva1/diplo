@@ -128,4 +128,53 @@ export class NotificationsService {
         `,
         });
     }
+
+    async sendEmailVerificationEmail(params: {
+        to: string;
+        name: string;
+        token: string;
+    }) {
+        const frontendUrl =
+            this.configService.get<string>("FRONTEND_URL") ??
+            "http://localhost:3001";
+
+        const from =
+            this.configService.get<string>("MAIL_FROM") ??
+            this.configService.get<string>("SMTP_USER");
+
+        const verificationUrl =
+            `${frontendUrl}/verify-email?token=${encodeURIComponent(params.token)}`;
+
+        const transporter = this.createTransporter();
+
+        await transporter.sendMail({
+            from,
+            to: params.to,
+            subject: "Verify your e-mail address",
+            text:
+                `Hello ${params.name},\n\n` +
+                `Thanks for creating your FleetCore organization.\n\n` +
+                `To verify your e-mail address, open this link:\n\n` +
+                `${verificationUrl}\n\n` +
+                `This link is valid for 24 hours.\n\n` +
+                `If you did not create this organization, you can ignore this email.`,
+            html: `
+            <p>Hello ${params.name},</p>
+
+            <p>Thanks for creating your FleetCore organization.</p>
+
+            <p>To verify your e-mail address, click the link below:</p>
+
+            <p>
+                <a href="${verificationUrl}">Verify e-mail address</a>
+            </p>
+
+            <p>This link is valid for 24 hours.</p>
+
+            <p>If you did not create this organization, you can ignore this email.</p>
+        `,
+        });
+
+        this.logger.log(`Verification e-mail sent to ${params.to}`);
+    }
 }

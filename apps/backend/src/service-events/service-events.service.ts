@@ -412,28 +412,51 @@ export class ServiceEventsService {
             }
         }
 
-        const updatedServiceEvent = await this.prisma.serviceEvent.update({
-            where: {
-                id: serviceEvent.id,
-            },
-            data: {
-                title: dto.title,
-                description: dto.description,
-                startAt: dto.startAt ? nextStartAt : undefined,
-                endAt: dto.endAt ? nextEndAt : undefined,
-                cost: dto.cost,
-                invoiceFileId: dto.invoiceFileId,
-                updatedAt: new Date(),
-            },
-            include: {
-                vehicle: true,
-                invoiceFile: true,
-                createdByMembership: {
-                    include: {
-                        user: true,
+        const shouldReplaceInvoice =
+            dto.invoiceFileId !== undefined &&
+            dto.invoiceFileId !== serviceEvent.invoiceFileId;
+
+        const oldInvoiceFile = shouldReplaceInvoice
+            ? serviceEvent.invoiceFile
+            : null;
+
+        const updatedServiceEvent = await this.prisma.$transaction(async (tx) => {
+            const updated = await tx.serviceEvent.update({
+                where: {
+                    id: serviceEvent.id,
+                },
+                data: {
+                    title: dto.title,
+                    description: dto.description,
+                    startAt: dto.startAt ? nextStartAt : undefined,
+                    endAt: dto.endAt ? nextEndAt : undefined,
+                    cost: dto.cost,
+                    invoiceFileId: dto.invoiceFileId,
+                    updatedAt: new Date(),
+                },
+                include: {
+                    vehicle: true,
+                    invoiceFile: true,
+                    createdByMembership: {
+                        include: {
+                            user: true,
+                        },
                     },
                 },
-            },
+            });
+
+            if (oldInvoiceFile) {
+                await tx.fileAttachment.update({
+                    where: {
+                        id: oldInvoiceFile.id,
+                    },
+                    data: {
+                        deletedAt: new Date(),
+                    },
+                });
+            }
+
+            return updated;
         });
 
         return this.toServiceEventResponse(updatedServiceEvent);

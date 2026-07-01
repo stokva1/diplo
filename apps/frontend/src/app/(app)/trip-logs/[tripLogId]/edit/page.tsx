@@ -8,18 +8,19 @@ import {
     ArrowRight,
     Car,
     Check,
-    CircleAlert,
+    CircleAlert, FileText,
     Fuel,
     Gauge,
     MapPin,
 } from "lucide-react";
-import {apiRequest} from "@/lib/api";
+import {apiRequest, uploadFile} from "@/lib/api";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {formatDateTimeRange,} from "@/lib/date";
 import {formatKm} from "@/lib/format";
 import type {MeResponse} from "@/types/api";
+import {FilePicker} from "@/components/FilePicker";
 
 type TripLogDetail = {
     id: string;
@@ -38,6 +39,10 @@ type TripLogDetail = {
     distanceKm: number;
     refueled: boolean;
     refuelingCost?: number | null;
+    refuelingReceiptFile?: {
+        id: string;
+        fileName: string;
+    } | null;
     note?: string | null;
 };
 
@@ -46,11 +51,13 @@ export default function EditTripLogPage() {
     const router = useRouter();
 
     const tripLogId = params.tripLogId;
-
     const [tripLog, setTripLog] = useState<TripLogDetail | null>(null);
+
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
     const [form, setForm] = useState({
         odometerStartKm: "",
@@ -183,6 +190,10 @@ export default function EditTripLogPage() {
         setIsSubmitting(true);
 
         try {
+            const uploadedReceipt = form.refueled && receiptFile
+                ? await uploadFile(receiptFile, "FUEL_RECEIPT", token)
+                : null;
+
             await apiRequest(
                 `/reservations/${tripLog.reservationId}/trip-log`,
                 {
@@ -192,12 +203,18 @@ export default function EditTripLogPage() {
                         odometerStartKm,
                         odometerEndKm,
                         refueled: form.refueled,
-                        ...(form.refueled && refuelingCost !== undefined
-                            ? {refuelingCost}
-                            : {}),
-                        ...(form.note.trim()
-                            ? {note: form.note.trim()}
-                            : {}),
+                        ...(form.refueled
+                            ? {
+                                refuelingCost: refuelingCost ?? null,
+                                ...(uploadedReceipt
+                                    ? {refuelingReceiptFileId: uploadedReceipt.id}
+                                    : {}),
+                            }
+                            : {
+                                refuelingCost: null,
+                                refuelingReceiptFileId: null,
+                            }),
+                        note: form.note.trim() || null,
                     },
                 },
             );
@@ -395,15 +412,19 @@ export default function EditTripLogPage() {
                             <input
                                 type="checkbox"
                                 checked={form.refueled}
-                                onChange={(event) =>
+                                onChange={(event) => {
+                                    const refueled = event.target.checked;
+
                                     setForm({
                                         ...form,
-                                        refueled: event.target.checked,
-                                        refuelingCost: event.target.checked
-                                            ? form.refuelingCost
-                                            : "",
-                                    })
-                                }
+                                        refueled,
+                                        refuelingCost: refueled ? form.refuelingCost : "",
+                                    });
+
+                                    if (!refueled) {
+                                        setReceiptFile(null);
+                                    }
+                                }}
                                 className="size-4 rounded border-input"
                             />
 
@@ -415,23 +436,55 @@ export default function EditTripLogPage() {
                         </label>
 
                         {form.refueled ? (
-                            <div className="mt-4 max-w-xs">
-                                <Field label="Fuel cost">
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        value={form.refuelingCost}
-                                        onChange={(event) =>
-                                            setForm({
-                                                ...form,
-                                                refuelingCost: event.target.value.replace(/\D/g, ""),
-                                            })
-                                        }
-                                        placeholder="e.g. 1200"
-                                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
-                                    />
-                                </Field>
+                            <div className="mt-4 space-y-4">
+                                <div className="max-w-xs">
+                                    <Field label="Fuel cost">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={form.refuelingCost}
+                                            onChange={(event) =>
+                                                setForm({
+                                                    ...form,
+                                                    refuelingCost: event.target.value.replace(/\D/g, ""),
+                                                })
+                                            }
+                                            placeholder="e.g. 1200"
+                                            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
+                                        />
+                                    </Field>
+                                </div>
+
+                                {tripLog.refuelingReceiptFile ? (
+                                    <div>
+                                        <p className="mb-1.5 text-sm font-medium text-card-foreground">
+                                            Current receipt
+                                        </p>
+
+                                        <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                                                <FileText className="size-4 text-muted-foreground"/>
+                                            </div>
+
+                                            <p className="min-w-0 truncate text-sm text-card-foreground">
+                                                {tripLog.refuelingReceiptFile.fileName}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                <FilePicker
+                                    file={receiptFile}
+                                    onChange={setReceiptFile}
+                                    disabled={isSubmitting}
+                                />
+
+                                {tripLog.refuelingReceiptFile && receiptFile ? (
+                                    <Alert variant="error">
+                                        Saving changes will permanently remove the current receipt.
+                                    </Alert>
+                                ) : null}
                             </div>
                         ) : null}
                     </div>

@@ -36,6 +36,7 @@ async function clearDatabase() {
     await prisma.reservation.deleteMany();
     await prisma.invitation.deleteMany();
     await prisma.passwordResetToken.deleteMany();
+    await prisma.emailVerificationToken.deleteMany();
     await prisma.fileAttachment.deleteMany();
     await prisma.auditLog.deleteMany();
     await prisma.vehicle.deleteMany();
@@ -57,6 +58,7 @@ async function main() {
             email: 'petr.svoboda@firma.cz',
             name: 'Petr Svoboda',
             passwordHash,
+            emailVerifiedAt: new Date(),
         },
     });
 
@@ -65,6 +67,7 @@ async function main() {
             email: 'jana.novakova@firma.cz',
             name: 'Jana Novakova',
             passwordHash,
+            emailVerifiedAt: new Date(),
         },
     });
 
@@ -73,6 +76,7 @@ async function main() {
             email: 'disabled.user@firma.cz',
             name: 'Disabled User',
             passwordHash,
+            emailVerifiedAt: new Date(),
         },
     });
 

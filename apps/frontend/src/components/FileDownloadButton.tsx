@@ -47,7 +47,7 @@ export function FileDownloadButton({
             className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
             <Download className="size-3.5"/>
-            {isDownloading ? "Downloading..." : "Download invoice"}
+            {isDownloading ? "Downloading..." : "Download file"}
         </button>
     );
 }

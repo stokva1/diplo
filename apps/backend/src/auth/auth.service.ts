@@ -1,6 +1,6 @@
 import {
     BadRequestException,
-    ConflictException, ForbiddenException,
+    ForbiddenException,
     Injectable,
     InternalServerErrorException,
     UnauthorizedException,
@@ -61,42 +61,49 @@ export class AuthService {
     }
 
     async registerOrganization(dto: RegisterOrganizationDto) {
+        const email = dto.user.email.trim().toLowerCase();
+
         const existingUser = await this.prisma.user.findUnique({
             where: {
-                email: dto.user.email,
+                email,
             },
         });
 
         if (existingUser) {
-            throw new ConflictException('E-mail already exists.');
+            throw new BadRequestException(
+                "Registration could not be completed. Try signing in or resetting your password.",
+            );
         }
 
         const passwordHash = await bcrypt.hash(dto.user.password, 12);
+        const verificationToken = crypto.randomBytes(32).toString("hex");
+        const verificationTokenHash = hashToken(verificationToken);
 
         try {
-            return await this.prisma.$transaction(async (tx) => {
+            const result = await this.prisma.$transaction(async (tx) => {
                 const user = await tx.user.create({
                     data: {
-                        email: dto.user.email,
-                        name: dto.user.name,
+                        email,
+                        name: dto.user.name.trim(),
                         passwordHash,
                     },
                 });
 
                 const organization = await tx.organization.create({
                     data: {
-                        name: dto.organization.name,
-                        ico: dto.organization.ico,
-                        contactEmail: dto.organization.contactEmail,
+                        name: dto.organization.name.trim(),
+                        ico: dto.organization.ico?.trim() || null,
+                        contactEmail:
+                            dto.organization.contactEmail?.trim().toLowerCase() || null,
                     },
                 });
 
-                const membership = await tx.membership.create({
+                await tx.membership.create({
                     data: {
                         userId: user.id,
                         organizationId: organization.id,
-                        role: 'ADMIN',
-                        status: 'ACTIVE',
+                        role: "ADMIN",
+                        status: "ACTIVE",
                     },
                 });
 
@@ -106,42 +113,39 @@ export class AuthService {
                     },
                 });
 
-                const tokenPayload = {
-                    sub: user.id,
-                    membershipId: membership.id,
-                    organizationId: organization.id,
-                    role: membership.role,
-                };
-
-                const accessToken = await this.generateAccessToken(tokenPayload);
-                const refreshToken = await this.generateRefreshToken(tokenPayload);
+                await tx.emailVerificationToken.create({
+                    data: {
+                        userId: user.id,
+                        tokenHash: verificationTokenHash,
+                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    },
+                });
 
                 return {
-                    accessToken,
-                    refreshToken,
-                    user: {
-                        id: user.id,
-                        email: user.email,
-                        name: user.name,
-                    },
-                    organization: {
-                        id: organization.id,
-                        name: organization.name,
-                        ico: organization.ico,
-                        contactEmail: organization.contactEmail,
-                    },
-                    member: {
-                        id: membership.id,
-                        organizationId: membership.organizationId,
-                        role: membership.role,
-                        status: membership.status,
-                        managedVehicleIds: [],
-                    },
+                    email: user.email,
+                    name: user.name,
                 };
             });
-        } catch (error) {
+
+            void this.notificationsService
+                .sendEmailVerificationEmail({
+                    to: result.email,
+                    name: result.name,
+                    token: verificationToken,
+                })
+                .catch((error) => {
+                    console.error(
+                        "Verification e-mail could not be sent.",
+                        error,
+                    );
+                });
+
+            return {
+                email: result.email,
+            };
+        } catch {
             throw new InternalServerErrorException(
-                'The organization could not be created.',
+                "The organization could not be created.",
             );
         }
     }
@@ -173,7 +177,7 @@ export class AuthService {
     async login(dto: LoginDto) {
         const user = await this.prisma.user.findUnique({
             where: {
-                email: dto.email,
+                email: dto.email.trim().toLowerCase(),
             },
             include: {
                 memberships: {
@@ -192,6 +196,12 @@ export class AuthService {
 
         if (!passwordMatches) {
             throw new UnauthorizedException('Invalid email or password.');
+        }
+
+        if (!user.emailVerifiedAt) {
+            throw new ForbiddenException(
+                "Verify your e-mail address before signing in.",
+            );
         }
 
         const membership = user.memberships.find(
@@ -329,7 +339,7 @@ export class AuthService {
     async requestPasswordReset(dto: PasswordResetRequestDto) {
         const user = await this.prisma.user.findUnique({
             where: {
-                email: dto.email,
+                email: dto.email.trim().toLowerCase(),
             },
         });
 
@@ -399,6 +409,51 @@ export class AuthService {
                 },
                 data: {
                     usedAt: new Date(),
+                },
+            }),
+        ]);
+
+        return undefined;
+    }
+
+    async confirmEmailVerification(token: string) {
+        const tokenHash = hashToken(token);
+
+        const verificationToken =
+            await this.prisma.emailVerificationToken.findFirst({
+                where: {
+                    tokenHash,
+                    usedAt: null,
+                    expiresAt: {
+                        gt: new Date(),
+                    },
+                },
+            });
+
+        if (!verificationToken) {
+            throw new BadRequestException(
+                "Invalid or expired e-mail verification token.",
+            );
+        }
+
+        const now = new Date();
+
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: {
+                    id: verificationToken.userId,
+                },
+                data: {
+                    emailVerifiedAt: now,
+                    updatedAt: now,
+                },
+            }),
+            this.prisma.emailVerificationToken.update({
+                where: {
+                    id: verificationToken.id,
+                },
+                data: {
+                    usedAt: now,
                 },
             }),
         ]);

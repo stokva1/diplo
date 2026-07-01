@@ -13,12 +13,14 @@ import {
     MapPin,
     TriangleAlert,
 } from "lucide-react";
-import {apiRequest} from "@/lib/api";
+import {apiRequest, uploadFile} from "@/lib/api";
 import {Alert} from "@/components/Alert";
 import {LoadingState} from "@/components/LoadingState";
 import {PageHeader} from "@/components/PageHeader";
 import {formatDateTimeRange} from "@/lib/date";
 import {formatKm} from "@/lib/format";
+import {FilePicker} from "@/components/FilePicker";
+import {PhotoPicker} from "@/components/PhotoPicker";
 
 type ReservationStatus = "ACTIVE" | "CANCELLED" | "FINISHED";
 
@@ -57,11 +59,14 @@ export default function CompleteTripLogPage() {
     const router = useRouter();
 
     const reservationId = params.reservationId;
-
     const [reservation, setReservation] = useState<ReservationDetail | null>(null);
+
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [issuePhotoFiles, setIssuePhotoFiles] = useState<File[]>([]);
 
     const [form, setForm] = useState({
         odometerStartKm: "",
@@ -173,6 +178,18 @@ export default function CompleteTripLogPage() {
         setIsSubmitting(true);
 
         try {
+            const uploadedReceipt = form.refueled && receiptFile
+                ? await uploadFile(receiptFile, "FUEL_RECEIPT", token)
+                : null;
+
+            const uploadedIssuePhotos = form.issueDescription.trim()
+                ? await Promise.all(
+                    issuePhotoFiles.map((file) =>
+                        uploadFile(file, "ISSUE_PHOTO", token),
+                    ),
+                )
+                : [];
+
             await apiRequest<CreateTripLogResponse>(
                 `/reservations/${reservation.id}/trip-log`,
                 {
@@ -185,6 +202,9 @@ export default function CompleteTripLogPage() {
                         ...(form.refueled && refuelingCost !== undefined
                             ? {refuelingCost}
                             : {}),
+                        ...(uploadedReceipt
+                            ? {refuelingReceiptFileId: uploadedReceipt.id}
+                            : {}),
                         ...(form.note.trim()
                             ? {note: form.note.trim()}
                             : {}),
@@ -192,6 +212,11 @@ export default function CompleteTripLogPage() {
                             ? {
                                 issue: {
                                     description: form.issueDescription.trim(),
+                                    ...(uploadedIssuePhotos.length > 0
+                                        ? {
+                                            photoFileIds: uploadedIssuePhotos.map((photo) => photo.id),
+                                        }
+                                        : {}),
                                 },
                             }
                             : {}),
@@ -411,20 +436,24 @@ export default function CompleteTripLogPage() {
                         </p>
                     </div>
 
-                    <div className="p-5">
+                    <div className="p-5 space-y-4">
                         <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted/40">
                             <input
                                 type="checkbox"
                                 checked={form.refueled}
-                                onChange={(event) =>
+                                onChange={(event) => {
+                                    const refueled = event.target.checked;
+
                                     setForm({
                                         ...form,
-                                        refueled: event.target.checked,
-                                        refuelingCost: event.target.checked
-                                            ? form.refuelingCost
-                                            : "",
-                                    })
-                                }
+                                        refueled,
+                                        refuelingCost: refueled ? form.refuelingCost : "",
+                                    });
+
+                                    if (!refueled) {
+                                        setReceiptFile(null);
+                                    }
+                                }}
                                 className="size-4 rounded border-input"
                             />
 
@@ -436,23 +465,31 @@ export default function CompleteTripLogPage() {
                         </label>
 
                         {form.refueled ? (
-                            <div className="mt-4 max-w-xs">
-                                <Field label="Fuel cost">
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        value={form.refuelingCost}
-                                        onChange={(event) =>
-                                            setForm({
-                                                ...form,
-                                                refuelingCost: event.target.value.replace(/\D/g, ""),
-                                            })
-                                        }
-                                        placeholder="e.g. 1200"
-                                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
-                                    />
-                                </Field>
+                            <div className="space-y-4">
+                                <div className="max-w-xs">
+                                    <Field label="Fuel cost">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={form.refuelingCost}
+                                            onChange={(event) =>
+                                                setForm({
+                                                    ...form,
+                                                    refuelingCost: event.target.value.replace(/\D/g, ""),
+                                                })
+                                            }
+                                            placeholder="e.g. 1200"
+                                            className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/10"
+                                        />
+                                    </Field>
+                                </div>
+
+                                <FilePicker
+                                    file={receiptFile}
+                                    onChange={setReceiptFile}
+                                    disabled={isSubmitting}
+                                />
                             </div>
                         ) : null}
                     </div>
@@ -504,6 +541,11 @@ export default function CompleteTripLogPage() {
                                         }
                                         placeholder="Describe the problem..."
                                         className="mt-3 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/10"
+                                    />
+                                    <PhotoPicker
+                                        files={issuePhotoFiles}
+                                        onChange={setIssuePhotoFiles}
+                                        disabled={isSubmitting}
                                     />
                                 </div>
                             </div>

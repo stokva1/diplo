@@ -378,8 +378,21 @@ export class InvitationsService {
                         email: invitation.email,
                         name: userName,
                         passwordHash,
+                        emailVerifiedAt: new Date(),
                     },
                 }));
+
+            if (existingUser && !existingUser.emailVerifiedAt) {
+                await tx.user.update({
+                    where: {
+                        id: existingUser.id,
+                    },
+                    data: {
+                        emailVerifiedAt: new Date(),
+                        updatedAt: new Date(),
+                    },
+                });
+            }
 
             const membership = await tx.membership.create({
                 data: {

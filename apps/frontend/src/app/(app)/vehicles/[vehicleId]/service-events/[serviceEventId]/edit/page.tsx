@@ -8,7 +8,7 @@ import {
     CalendarDays,
     Car,
     Check,
-    CircleAlert,
+    CircleAlert, FileText,
     Wrench,
 } from "lucide-react";
 import {apiRequest, uploadFile} from "@/lib/api";
@@ -29,6 +29,10 @@ type ServiceEventDetail = {
     startAt: string;
     endAt: string;
     cost?: number | null;
+    invoiceFile?: {
+        id: string;
+        fileName: string;
+    } | null;
 };
 
 function toLocalDateValue(value: string) {
@@ -445,12 +449,38 @@ export default function EditServiceEventPage() {
                         </p>
                     </div>
 
-                    <div className="p-5">
-                        <FilePicker
-                            file={invoiceFile}
-                            onChange={setInvoiceFile}
-                            disabled={isSubmitting}
-                        />
+                    <div className="space-y-4 p-5">
+                        {serviceEvent.invoiceFile ? (
+                            <div>
+                                <p className="mb-1.5 text-sm font-medium text-card-foreground">
+                                    Current invoice
+                                </p>
+
+                                <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                                        <FileText className="size-4 text-muted-foreground"/>
+                                    </div>
+
+                                    <p className="min-w-0 truncate text-sm text-card-foreground">
+                                        {serviceEvent.invoiceFile.fileName}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        <div>
+                            <FilePicker
+                                file={invoiceFile}
+                                onChange={setInvoiceFile}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+
+                        {serviceEvent.invoiceFile && invoiceFile ? (
+                            <Alert variant="error">
+                                Saving changes will permanently remove the current attachment and replace it.
+                            </Alert>
+                        ) : null}
                     </div>
                 </section>
 
