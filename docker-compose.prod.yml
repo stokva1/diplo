@@ -21,6 +21,21 @@ services:
     networks:
       - diplo-network
 
+  migrate:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+      target: build
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    command: [ "npx", "prisma", "migrate", "deploy" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - diplo-network
+
   backend:
     build:
       context: ./apps/backend
@@ -37,8 +52,8 @@ services:
     volumes:
       - diplo_uploads:/app/uploads
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - diplo-network
 
