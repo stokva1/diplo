@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
-import {useState} from "react";
+import {Suspense, useState} from "react";
 import {ArrowLeft, CheckCircle2, LockKeyhole} from "lucide-react";
 import {apiRequest} from "@/lib/api";
 import {Alert} from "@/components/Alert";
+import {LoadingState} from "@/components/LoadingState";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -218,6 +219,14 @@ export default function ResetPasswordPage() {
                 </section>
             </div>
         </main>
+    );
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<LoadingState label="Loading..."/>}>
+            <ResetPasswordContent/>
+        </Suspense>
     );
 }
 

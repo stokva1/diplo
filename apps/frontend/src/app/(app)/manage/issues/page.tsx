@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useMemo, useState} from "react";
+import {Suspense, useEffect, useMemo, useState} from "react";
 import {useSearchParams} from "next/navigation";
 import {
     ArrowDownAZ,
@@ -55,7 +55,7 @@ type IssuesResponse = {
     data: IssueListItem[];
 };
 
-export default function IssuesPage() {
+function IssuesContent() {
     const searchParams = useSearchParams();
     const vehicleId = searchParams.get("vehicleId");
 
@@ -401,4 +401,12 @@ function getStatusFilterLabel(status: StatusFilter) {
     };
 
     return labels[status];
+}
+
+export default function IssuesPage() {
+    return (
+        <Suspense fallback={<LoadingState label="Loading..."/>}>
+            <IssuesContent/>
+        </Suspense>
+    );
 }

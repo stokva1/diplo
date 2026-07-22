@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useState} from "react";
+import {Suspense, useEffect, useState} from "react";
 import {useRouter, useSearchParams} from "next/navigation";
 import {Check, LockKeyhole, Mail, UserPlus} from "lucide-react";
 import {apiRequest} from "@/lib/api";
@@ -28,7 +28,7 @@ type AcceptInvitationResponse = {
     };
 };
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -330,6 +330,14 @@ export default function AcceptInvitationPage() {
                 </section>
             </div>
         </main>
+    );
+}
+
+export default function AcceptInvitationPage() {
+    return (
+        <Suspense fallback={<LoadingState label="Loading invitation..."/>}>
+            <AcceptInvitationContent/>
+        </Suspense>
     );
 }
 

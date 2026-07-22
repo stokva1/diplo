@@ -3,8 +3,11 @@
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {Mail, ArrowLeft} from "lucide-react";
+import {Suspense} from "react";
+import {LoadingState} from "@/components/LoadingState";
 
-export default function CheckEmailPage() {
+
+function CheckEmailContent() {
     const searchParams = useSearchParams();
     const email = searchParams.get("email");
 
@@ -95,5 +98,13 @@ export default function CheckEmailPage() {
                 </section>
             </div>
         </main>
+    );
+}
+
+export default function CheckEmailPage() {
+    return (
+        <Suspense fallback={<LoadingState label="Loading..."/>}>
+            <CheckEmailContent/>
+        </Suspense>
     );
 }
