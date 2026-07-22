@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {Prisma, PrismaClient} from '../generated/prisma/client';
+import { randomBytes } from 'node:crypto';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -20,9 +21,19 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const PASSWORD = 'tajne-heslo';
-const INVITATION_TOKEN = 'seed-invitation-token';
-const PASSWORD_RESET_TOKEN = 'seed-password-reset-token';
+function requireEnvironmentVariable(name: string): string {
+    const value = process.env[name];
+
+    if (!value) {
+        throw new Error(`${name} is not set`);
+    }
+
+    return value;
+}
+
+const PASSWORD = requireEnvironmentVariable('SEED_USER_PASSWORD');
+const INVITATION_TOKEN = randomBytes(32).toString('hex');
+const PASSWORD_RESET_TOKEN = randomBytes(32).toString('hex');
 
 function hashToken(token: string) {
     return crypto.createHash('sha256').update(token).digest('hex');
@@ -47,6 +58,12 @@ async function clearDatabase() {
 }
 
 async function main() {
+    if (process.env.ALLOW_DATABASE_RESET !== 'true') {
+        throw new Error(
+            'Database seed is blocked. Set ALLOW_DATABASE_RESET=true to allow it.',
+        );
+    }
+
     console.log('Clearing database...');
     await clearDatabase();
 
