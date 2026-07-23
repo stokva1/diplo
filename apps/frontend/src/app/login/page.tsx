@@ -10,8 +10,8 @@ import {setAuthTokens} from "@/lib/auth";
 
 export default function LoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState("petr.svoboda@firma.cz");
-    const [password, setPassword] = useState("tajne-heslo");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loginResponse, setLoginResponse] = useState<LoginResponse | null>(null);
