@@ -10,7 +10,7 @@ import * as crypto from 'crypto';
 import {PrismaService} from '../database/prisma.service';
 import {RegisterOrganizationDto} from './dto/register-organization.dto';
 import {LoginDto} from './dto/login.dto';
-import {JwtService} from '@nestjs/jwt';
+import {JwtService, type JwtSignOptions} from '@nestjs/jwt';
 import {PasswordResetConfirmDto} from "./dto/password-reset-confirm.dto";
 import {PasswordResetRequestDto} from "./dto/password-reset-request.dto";
 import {RefreshTokenDto} from "./dto/refresh-token.dto";
@@ -153,9 +153,19 @@ export class AuthService {
     private async generateAccessToken(
         payload: AccessTokenPayload,
     ): Promise<string> {
+        const secret = process.env.JWT_ACCESS_SECRET;
+
+        if (!secret) {
+            throw new Error("JWT_ACCESS_SECRET is not set");
+        }
+
+        const expiresIn = (
+            process.env.JWT_ACCESS_EXPIRES_IN ?? "15m"
+        ) as JwtSignOptions["expiresIn"];
+
         return this.jwtService.signAsync(payload, {
-            secret: process.env.JWT_ACCESS_SECRET,
-            expiresIn: '15m', //TODO: Change to like couple minutes for production
+            secret,
+            expiresIn,
         });
     }
 
@@ -165,12 +175,16 @@ export class AuthService {
         const secret = process.env.JWT_REFRESH_SECRET;
 
         if (!secret) {
-            throw new Error('JWT_REFRESH_SECRET is not set');
+            throw new Error("JWT_REFRESH_SECRET is not set");
         }
+
+        const expiresIn = (
+            process.env.JWT_REFRESH_EXPIRES_IN ?? "7d"
+        ) as JwtSignOptions["expiresIn"];
 
         return this.jwtService.signAsync(payload, {
             secret,
-            expiresIn: '7d',
+            expiresIn,
         });
     }
 
